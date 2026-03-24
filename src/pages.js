@@ -232,9 +232,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
   };
   const reorderHabits=async(next)=>{
     setHabits(next.map((h,index)=>({...h,position:index})));
-    for(let index=0;index<next.length;index++){
-      await sb.from("habits").update({position:index}).eq("id",next[index].id);
-    }
+    await Promise.all(next.map((habit,index)=>sb.from("habits").update({position:index}).eq("id",habit.id)));
   };
   const onDrop=async(targetId)=>{
     if(!dragId||dragId===targetId){setDragId(null);setDragOverId(null);return;}
@@ -280,7 +278,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
                   )}
                   <span style={{fontSize:12,color:C.muted}}>🔥 {streak}d</span>
                   <span style={{fontSize:12,color:C.faint}}>best {longest}d</span>
-                  <button onClick={()=>startEdit(h)} style={{fontSize:14,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>✎</button>
+                  <button aria-label={`Edit habit: ${h.name}`} onClick={()=>startEdit(h)} style={{fontSize:14,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>✎</button>
                   <button onClick={()=>del(h.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
                 </div>
               );
@@ -344,7 +342,7 @@ function GoalsPage({userId,C}) {
               <span style={{flex:1,fontSize:15,fontWeight:500,color:C.text}}>{g.title}</span>
               <span style={{fontSize:12,color:C.muted}}>{pct}%</span>
               <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{fontSize:11,color:C.faint,background:"none",border:"none",cursor:"pointer"}}>{isOpen?"▲":"▼"}</button>
-              {pct===100&&<button onClick={()=>setArchived(g.id,true)} style={{fontSize:12,color:C.accent,background:"none",border:`0.5px solid ${C.accent}66`,borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>Archive</button>}
+              {pct===100&&<button aria-label={`Archive goal: ${g.title}`} onClick={()=>setArchived(g.id,true)} style={{fontSize:12,color:C.accent,background:"none",border:`0.5px solid ${C.accent}66`,borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>Archive</button>}
               <button onClick={()=>delGoal(g.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
             </div>
             {gSubs.length>0&&<div style={{height:4,borderRadius:4,background:C.border,overflow:"hidden",marginBottom:isOpen?10:0}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:C.accent,borderRadius:4,transition:"width 0.3s"}}/></div>}
@@ -380,7 +378,7 @@ function GoalsPage({userId,C}) {
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <span style={{flex:1,fontSize:15,fontWeight:500,color:C.text}}>{g.title}</span>
                   <span style={{fontSize:12,color:C.muted}}>{pct}%</span>
-                  <button onClick={()=>setArchived(g.id,false)} style={{fontSize:12,color:C.accent,background:"none",border:`0.5px solid ${C.accent}66`,borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>Unarchive</button>
+                  <button aria-label={`Unarchive goal: ${g.title}`} onClick={()=>setArchived(g.id,false)} style={{fontSize:12,color:C.accent,background:"none",border:`0.5px solid ${C.accent}66`,borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>Unarchive</button>
                   <button onClick={()=>delGoal(g.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
                 </div>
               </div>
