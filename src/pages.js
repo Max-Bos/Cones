@@ -1,0 +1,623 @@
+/* ── AUTH ── */
+function AuthPage({C}) {
+  const [mode,setMode]=useState("login");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [error,setError]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [sent,setSent]=useState(false);
+
+  const submit=async()=>{
+    setError("");setLoading(true);
+    if(mode==="login"){
+      const {error:e}=await sb.auth.signInWithPassword({email,password});
+      if(e){
+        if(e.message.toLowerCase().includes("invalid login")) setError("Incorrect email or password.");
+        else setError(e.message);
+      }
+    } else {
+      if(!email.includes("@")){setError("Enter a valid email address.");setLoading(false);return;}
+      if(password.length<6){setError("Password must be at least 6 characters.");setLoading(false);return;}
+      const {data,error:e}=await sb.auth.signUp({email,password});
+      if(e){
+        if(e.message.toLowerCase().includes("already registered")||e.message.toLowerCase().includes("user already exists"))
+          setError("An account with this email already exists. Sign in instead.");
+        else setError(e.message);
+      } else if(data?.user?.identities?.length===0){
+        setError("An account with this email already exists. Sign in instead.");
+      } else {
+        setSent(true);
+      }
+    }
+    setLoading(false);
+  };
+
+  const inp={width:"100%",border:`0.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:14,background:C.surface,color:C.text,marginBottom:10};
+
+  if(sent) return (
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+      <div style={{maxWidth:360,width:"100%",textAlign:"center"}}>
+        <h1 style={{fontSize:24,fontWeight:600,color:C.accent,marginBottom:8}}>Cones</h1>
+        <p style={{fontSize:15,color:C.text,marginBottom:6}}>Check your email</p>
+        <p style={{fontSize:13,color:C.muted}}>We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then sign in.</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+      <div style={{maxWidth:360,width:"100%"}}>
+        <h1 style={{fontSize:28,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",marginBottom:4,textAlign:"center"}}>Cones</h1>
+        <p style={{fontSize:13,color:C.muted,textAlign:"center",marginBottom:32}}>Daily habits &amp; goals</p>
+        <div style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:16,padding:"24px 20px"}}>
+          <div style={{display:"flex",background:C.bg,borderRadius:10,padding:3,marginBottom:20,border:`0.5px solid ${C.border}`}}>
+            {["login","signup"].map(m=>(
+              <button key={m} onClick={()=>{setMode(m);setError("");}} style={{flex:1,border:"none",borderRadius:8,padding:"7px 0",fontSize:13,fontWeight:500,background:mode===m?C.accent:"transparent",color:mode===m?"#fff":C.muted,cursor:"pointer",transition:"all 0.15s"}}>
+                {m==="login"?"Sign in":"Sign up"}
+              </button>
+            ))}
+          </div>
+          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={inp}/>
+          <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{...inp,marginBottom:16}}/>
+          {error&&<p style={{fontSize:12,color:C.danger,marginBottom:12,marginTop:-6}}>{error}</p>}
+          <button onClick={submit} disabled={loading} style={{width:"100%",border:"none",borderRadius:10,padding:"11px 0",fontSize:14,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer",opacity:loading?0.7:1}}>
+            {loading?"...":(mode==="login"?"Sign in":"Create account")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── 2FA VERIFY (after login) ── */
+function TwoFAVerify({C,onVerified}) {
+  const [code,setCode]=useState("");
+  const [error,setError]=useState("");
+  const [loading,setLoading]=useState(false);
+
+  const verify=async()=>{
+    setError("");setLoading(true);
+    const factors=await sb.auth.mfa.listFactors();
+    const totp=factors.data?.totp?.[0];
+    if(!totp){onVerified();return;}
+    const {data:challenge,error:ce}=await sb.auth.mfa.challenge({factorId:totp.id});
+    if(ce){setError(ce.message);setLoading(false);return;}
+    const {error:ve}=await sb.auth.mfa.verify({factorId:totp.id,challengeId:challenge.id,code});
+    if(ve) setError("Invalid code. Try again."); else onVerified();
+    setLoading(false);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+      <div style={{maxWidth:340,width:"100%"}}>
+        <h1 style={{fontSize:24,fontWeight:600,color:C.accent,textAlign:"center",marginBottom:6}}>Cones</h1>
+        <p style={{fontSize:13,color:C.muted,textAlign:"center",marginBottom:28}}>Two-factor authentication</p>
+        <div style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:16,padding:"24px 20px"}}>
+          <p style={{fontSize:14,color:C.text,marginBottom:16}}>Enter the 6-digit code from your authenticator app.</p>
+          <input type="number" placeholder="000000" value={code} onChange={e=>setCode(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&verify()}
+            style={{width:"100%",border:`0.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:22,letterSpacing:"0.2em",textAlign:"center",background:C.bg,color:C.text,marginBottom:12}}/>
+          {error&&<p style={{fontSize:12,color:C.danger,marginBottom:10}}>{error}</p>}
+          <button onClick={verify} disabled={loading} style={{width:"100%",border:"none",borderRadius:10,padding:"11px 0",fontSize:14,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer",opacity:loading?0.7:1}}>
+            {loading?"...":"Verify"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── SETTINGS PAGE ── */
+function SettingsPage({user,C,dark,setDark,reminder,setReminder,onSignOut}) {
+  const [mfaStatus,setMfaStatus]=useState(null);
+  const [enrolling,setEnrolling]=useState(false);
+  const [qr,setQr]=useState("");
+  const [secret,setSecret]=useState("");
+  const [factorId,setFactorId]=useState("");
+  const [code,setCode]=useState("");
+  const [codeError,setCodeError]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [msg,setMsg]=useState("");
+
+  useEffect(()=>{
+    (async()=>{
+      const {data}=await sb.auth.mfa.listFactors();
+      const verified=data?.totp?.find(f=>f.status==="verified");
+      setMfaStatus(verified??"off");
+    })();
+  },[]);
+
+  const startEnroll=async()=>{
+    setLoading(true);setMsg("");
+    const {data,error}=await sb.auth.mfa.enroll({factorType:"totp",friendlyName:"Cones"});
+    if(error){setMsg(error.message);setLoading(false);return;}
+    setQr(data.totp.qr_code);
+    setSecret(data.totp.secret);
+    setFactorId(data.id);
+    setEnrolling(true);setLoading(false);
+  };
+
+  const confirmEnroll=async()=>{
+    setCodeError("");setLoading(true);
+    const {data:challenge,error:ce}=await sb.auth.mfa.challenge({factorId});
+    if(ce){setCodeError(ce.message);setLoading(false);return;}
+    const {error:ve}=await sb.auth.mfa.verify({factorId,challengeId:challenge.id,code});
+    if(ve){setCodeError("Invalid code — try again.");setLoading(false);return;}
+    setEnrolling(false);setMfaStatus({id:factorId});setMsg("2FA enabled ✓");setLoading(false);
+  };
+
+  const disable2FA=async()=>{
+    if(!window.confirm("Disable 2FA?")) return;
+    setLoading(true);
+    await sb.auth.mfa.unenroll({factorId:mfaStatus.id});
+    setMfaStatus("off");setMsg("2FA disabled.");setLoading(false);
+  };
+
+  const requestReminder=async()=>{
+    if(!("Notification"in window)) return alert("Notifications not supported.");
+    const perm=await Notification.requestPermission();
+    if(perm==="granted"){
+      const t=prompt("Daily reminder time (e.g. 20:00):","20:00");
+      if(t){setReminder(t);new Notification("Cones reminder set ✓",{body:`Reminder set for ${t} daily.`});}
+    }
+  };
+
+  const card={background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12};
+  const row={display:"flex",alignItems:"center",justifyContent:"space-between",gap:12};
+  const btn=(danger)=>({border:`0.5px solid ${danger?C.danger+"66":C.border}`,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:500,background:"none",color:danger?C.danger:C.accent,cursor:"pointer"});
+
+  return (
+    <div className="fadein">
+      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Settings</h2>
+
+      {/* Account */}
+      <div style={card}>
+        <p style={{fontSize:11,color:C.faint,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Account</p>
+        <div style={row}>
+          <span style={{fontSize:14,color:C.muted,overflow:"hidden",textOverflow:"ellipsis"}}>{user.email}</span>
+          <button onClick={onSignOut} style={btn(true)}>Sign out</button>
+        </div>
+      </div>
+
+      {/* Appearance */}
+      <div style={card}>
+        <p style={{fontSize:11,color:C.faint,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Appearance</p>
+        <div style={row}>
+          <span style={{fontSize:14,color:C.text}}>{dark?"Dark mode":"Light mode"}</span>
+          <button onClick={()=>setDark(d=>!d)} style={btn(false)}>{dark?"Switch to light":"Switch to dark"}</button>
+        </div>
+      </div>
+
+      {/* Reminders */}
+      <div style={card}>
+        <p style={{fontSize:11,color:C.faint,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Reminders</p>
+        <div style={row}>
+          <span style={{fontSize:14,color:C.text}}>{reminder?`Daily at ${reminder}`:"No reminder set"}</span>
+          <button onClick={requestReminder} style={btn(false)}>Set time</button>
+        </div>
+      </div>
+
+      {/* 2FA */}
+      <div style={card}>
+        <p style={{fontSize:11,color:C.faint,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Two-factor authentication</p>
+        {mfaStatus===null&&<p style={{fontSize:13,color:C.faint}}>Loading...</p>}
+
+        {mfaStatus==="off"&&!enrolling&&(
+          <div style={row}>
+            <span style={{fontSize:14,color:C.text}}>2FA is off</span>
+            <button onClick={startEnroll} disabled={loading} style={btn(false)}>{loading?"...":"Enable 2FA"}</button>
+          </div>
+        )}
+
+        {mfaStatus!=="off"&&mfaStatus!==null&&!enrolling&&(
+          <div style={row}>
+            <span style={{fontSize:14,color:C.done}}>2FA is on ✓</span>
+            <button onClick={disable2FA} disabled={loading} style={btn(true)}>{loading?"...":"Disable"}</button>
+          </div>
+        )}
+
+        {enrolling&&(
+          <div>
+            <p style={{fontSize:13,color:C.muted,marginBottom:12}}>Scan this QR code with Google Authenticator, Authy, or any TOTP app, then enter the 6-digit code to confirm.</p>
+            <div style={{textAlign:"center",marginBottom:12}}>
+              <img src={qr} alt="QR code" style={{width:160,height:160,borderRadius:8,background:"#fff",padding:6}}/>
+            </div>
+            <p style={{fontSize:11,color:C.faint,textAlign:"center",marginBottom:14,wordBreak:"break-all"}}>Manual key: {secret}</p>
+            <input type="number" placeholder="6-digit code" value={code} onChange={e=>setCode(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&confirmEnroll()}
+              style={{width:"100%",border:`0.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:20,letterSpacing:"0.15em",textAlign:"center",background:C.bg,color:C.text,marginBottom:8}}/>
+            {codeError&&<p style={{fontSize:12,color:C.danger,marginBottom:8}}>{codeError}</p>}
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setEnrolling(false)} style={{...btn(false),flex:1,color:C.muted}}>Cancel</button>
+              <button onClick={confirmEnroll} disabled={loading} style={{flex:2,border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer",opacity:loading?0.7:1}}>
+                {loading?"...":"Confirm"}
+              </button>
+            </div>
+          </div>
+        )}
+        {msg&&<p style={{fontSize:12,color:C.done,marginTop:10}}>{msg}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── TODAY ── */
+function TodayPage({habits,completions,setCompletions,userId,C}) {
+  const today=todayKey(); const days=last30();
+  const [expanded,setExpanded]=useState({});
+  const [localNotes,setLocalNotes]=useState({});
+
+  const toggle=async(habitId)=>{
+    const ex=completions.find(c=>c.habit_id===habitId&&c.date===today);
+    if(ex){
+      await sb.from("completions").delete().eq("id",ex.id);
+      setCompletions(c=>c.filter(x=>x.id!==ex.id));
+    } else {
+      const id=`${habitId}_${today}`;
+      const {data}=await sb.from("completions").insert({id,habit_id:habitId,date:today,note:"",user_id:userId}).select().single();
+      if(data) setCompletions(c=>[...c,data]);
+    }
+  };
+
+  const setNote=async(habitId,val)=>{
+    const ex=completions.find(c=>c.habit_id===habitId&&c.date===today);
+    if(ex) await sb.from("completions").update({note:val}).eq("id",ex.id);
+    setLocalNotes(n=>({...n,[`${habitId}_${today}`]:val}));
+  };
+
+  const doneToday=habits.filter(h=>completions.find(c=>c.habit_id===h.id&&c.date===today)).length;
+  const pct=habits.length?Math.round((doneToday/habits.length)*100):0;
+  const dateStr=new Date().toLocaleDateString("en-NL",{weekday:"long",month:"long",day:"numeric"});
+  const heatFills=["#EDE5D8","#F0D4B0","#E0B070",C.accent,C.accentDark];
+
+  return (
+    <div className="fadein">
+      <div style={{marginBottom:"1.75rem"}}>
+        <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text}}>Today</h2>
+        <p style={{fontSize:13,color:C.muted,marginTop:4}}>{dateStr}</p>
+      </div>
+      {habits.length===0&&<p style={{color:C.faint,fontSize:14,padding:"2rem 0",textAlign:"center"}}>No habits yet — add some in Habits.</p>}
+      {habits.map(h=>{
+        const comp=completions.find(c=>c.habit_id===h.id&&c.date===today);
+        const done=!!comp; const streak=computeStreak(h.id,completions);
+        const isOpen=!!expanded[h.id];
+        const noteVal=localNotes[`${h.id}_${today}`]??comp?.note??"";
+        const heatData=days.map(d=>completions.find(c=>c.habit_id===h.id&&c.date===d)?2:0);
+        return (
+          <div key={h.id} style={{background:done?C.doneBg:C.surface,border:`0.5px solid ${done?C.done+"44":C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10,transition:"background 0.2s"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div onClick={()=>toggle(h.id)} style={{width:20,height:20,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.5px solid ${done?C.done:C.border}`,background:done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>
+                {done&&<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <span style={{fontSize:15,fontWeight:500,flex:1,color:done?C.done:C.text,textDecoration:done?"line-through":"none",opacity:done?0.7:1}}>{h.name}</span>
+              {h.tag&&<TagPill tag={h.tag}/>}
+              {streak>0&&<span style={{fontSize:12,fontWeight:500,color:C.accentDark,background:C.streakBg,border:`0.5px solid ${C.streakBorder}`,borderRadius:20,padding:"2px 10px",flexShrink:0}}>{streak}d</span>}
+              <button onClick={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))} style={{fontSize:11,color:C.faint,background:"none",border:"none",cursor:"pointer",padding:"0 4px"}}>{isOpen?"▲":"▼"}</button>
+            </div>
+            {isOpen&&(
+              <div style={{marginTop:10,borderTop:`0.5px solid ${C.border}`,paddingTop:10}}>
+                <div style={{fontSize:11,color:C.faint,marginBottom:6,fontWeight:500,letterSpacing:"0.05em",textTransform:"uppercase"}}>Last 30 days</div>
+                <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:10}}>
+                  {heatData.map((lvl,i)=><div key={i} title={days[i]} style={{width:13,height:13,borderRadius:3,background:heatFills[Math.min(lvl,4)]}}/>)}
+                </div>
+                <textarea rows={2} placeholder="Note for today..." value={noteVal} onChange={e=>setNote(h.id,e.target.value)}
+                  style={{width:"100%",border:`0.5px solid ${C.border}`,borderRadius:8,padding:"6px 10px",fontSize:13,color:C.text,background:C.bg,lineHeight:1.5}}/>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {habits.length>0&&(
+        <div style={{marginTop:"2rem",paddingTop:"1.5rem",borderTop:`0.5px solid ${C.border}`}}>
+          <div style={{fontSize:12,fontWeight:500,color:C.faint,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"0.75rem"}}>Today's progress</div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:C.muted,marginBottom:6}}>
+            <span>{doneToday} of {habits.length} done</span>
+            <span style={{fontWeight:500,color:pct===100?C.done:C.accent}}>{pct}%</span>
+          </div>
+          <div style={{height:6,borderRadius:4,background:C.border,overflow:"hidden"}}>
+            <div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:C.accent,borderRadius:4,transition:"width 0.4s ease"}}/>
+          </div>
+          {pct===100&&<p style={{fontSize:13,color:C.done,marginTop:8,fontWeight:500}}>All done for today ✓</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── HABITS ── */
+function HabitsPage({habits,setHabits,completions,userId,C}) {
+  const [newName,setNewName]=useState(""); const [newTag,setNewTag]=useState("Other"); const [saving,setSaving]=useState(false);
+  const add=async()=>{
+    if(!newName.trim()) return; setSaving(true);
+    const id=Date.now().toString();
+    const {data}=await sb.from("habits").insert({id,name:newName.trim(),tag:newTag,user_id:userId}).select().single();
+    if(data) setHabits(h=>[...h,data]); setNewName(""); setSaving(false);
+  };
+  const del=async(id)=>{ await sb.from("habits").delete().eq("id",id); setHabits(h=>h.filter(x=>x.id!==id)); };
+
+  return (
+    <div className="fadein">
+      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Habits</h2>
+      <div style={{display:"flex",gap:8,marginBottom:"1.5rem",flexWrap:"wrap"}}>
+        <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New habit..."
+          style={{flex:1,minWidth:140,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"8px 12px",fontSize:14,background:C.surface,color:C.text}}/>
+        <select value={newTag} onChange={e=>setNewTag(e.target.value)}
+          style={{border:`0.5px solid ${C.border}`,borderRadius:10,padding:"8px 10px",fontSize:13,background:C.surface,color:C.text,cursor:"pointer"}}>
+          {TAGS.map(t=><option key={t.label}>{t.label}</option>)}
+        </select>
+        <button onClick={add} disabled={saving} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer",opacity:saving?0.6:1}}>{saving?"...":"Add"}</button>
+      </div>
+      {habits.length===0&&<p style={{color:C.faint,fontSize:14,textAlign:"center",padding:"2rem 0"}}>No habits yet.</p>}
+      {TAGS.map(tag=>{
+        const group=habits.filter(h=>(h.tag||"Other")===tag.label);
+        if(!group.length) return null;
+        return (
+          <div key={tag.label} style={{marginBottom:"1.5rem"}}>
+            <div style={{fontSize:11,fontWeight:500,color:tag.color,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:8}}>{tag.label}</div>
+            {group.map(h=>{
+              const streak=computeStreak(h.id,completions); const longest=computeLongest(h.id,completions);
+              return (
+                <div key={h.id} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginBottom:6}}>
+                  <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{h.name}</span>
+                  <span style={{fontSize:12,color:C.muted}}>🔥 {streak}d</span>
+                  <span style={{fontSize:12,color:C.faint}}>best {longest}d</span>
+                  <button onClick={()=>del(h.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── GOALS ── */
+function GoalsPage({userId,C}) {
+  const [goals,setGoals]=useState([]); const [subs,setSubs]=useState([]); const [loading,setLoading]=useState(true);
+  const [newGoal,setNewGoal]=useState(""); const [newSub,setNewSub]=useState({}); const [expanded,setExpanded]=useState({});
+  useEffect(()=>{(async()=>{
+    const [{data:g},{data:s}]=await Promise.all([sb.from("goals").select("*").order("created_at"),sb.from("subtasks").select("*")]);
+    setGoals(g||[]); setSubs(s||[]); setLoading(false);
+  })();},[]);
+  const addGoal=async()=>{
+    if(!newGoal.trim()) return; const id=Date.now().toString();
+    const {data}=await sb.from("goals").insert({id,title:newGoal.trim(),user_id:userId}).select().single();
+    if(data){setGoals(g=>[...g,data]);setExpanded(e=>({...e,[id]:true}));} setNewGoal("");
+  };
+  const delGoal=async(id)=>{ await sb.from("goals").delete().eq("id",id); setGoals(g=>g.filter(x=>x.id!==id)); setSubs(s=>s.filter(x=>x.goal_id!==id)); };
+  const addSub=async(gid)=>{
+    const title=(newSub[gid]||"").trim(); if(!title) return;
+    const id=`${gid}_${Date.now()}`;
+    const {data}=await sb.from("subtasks").insert({id,goal_id:gid,title,done:false,user_id:userId}).select().single();
+    if(data) setSubs(s=>[...s,data]); setNewSub(n=>({...n,[gid]:""}));
+  };
+  const toggleSub=async(s)=>{ await sb.from("subtasks").update({done:!s.done}).eq("id",s.id); setSubs(a=>a.map(x=>x.id===s.id?{...x,done:!s.done}:x)); };
+  const delSub=async(id)=>{ await sb.from("subtasks").delete().eq("id",id); setSubs(s=>s.filter(x=>x.id!==id)); };
+  if(loading) return <Spinner C={C}/>;
+  return (
+    <div className="fadein">
+      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Goals</h2>
+      <div style={{display:"flex",gap:8,marginBottom:"1.5rem"}}>
+        <input value={newGoal} onChange={e=>setNewGoal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addGoal()} placeholder="New goal..."
+          style={{flex:1,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"8px 12px",fontSize:14,background:C.surface,color:C.text}}/>
+        <button onClick={addGoal} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer"}}>Add</button>
+      </div>
+      {goals.length===0&&<p style={{color:C.faint,fontSize:14,textAlign:"center",padding:"2rem 0"}}>No goals yet.</p>}
+      {goals.map(g=>{
+        const gSubs=subs.filter(s=>s.goal_id===g.id); const done=gSubs.filter(s=>s.done).length;
+        const pct=gSubs.length?Math.round((done/gSubs.length)*100):0; const isOpen=!!expanded[g.id];
+        return (
+          <div key={g.id} style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:isOpen?10:0}}>
+              <span style={{flex:1,fontSize:15,fontWeight:500,color:C.text}}>{g.title}</span>
+              <span style={{fontSize:12,color:C.muted}}>{pct}%</span>
+              <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{fontSize:11,color:C.faint,background:"none",border:"none",cursor:"pointer"}}>{isOpen?"▲":"▼"}</button>
+              <button onClick={()=>delGoal(g.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
+            </div>
+            {gSubs.length>0&&<div style={{height:4,borderRadius:4,background:C.border,overflow:"hidden",marginBottom:isOpen?10:0}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:C.accent,borderRadius:4,transition:"width 0.3s"}}/></div>}
+            {isOpen&&(
+              <div style={{borderTop:`0.5px solid ${C.border}`,paddingTop:10}}>
+                {gSubs.map(s=>(
+                  <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0"}}>
+                    <div onClick={()=>toggleSub(s)} style={{width:17,height:17,borderRadius:5,flexShrink:0,cursor:"pointer",border:`1.5px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1}}>{s.title}</span>
+                    <button onClick={()=>delSub(s.id)} style={{fontSize:14,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
+                  </div>
+                ))}
+                <div style={{display:"flex",gap:6,marginTop:8}}>
+                  <input value={newSub[g.id]||""} onChange={e=>setNewSub(n=>({...n,[g.id]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addSub(g.id)}
+                    placeholder="Add sub-task..." style={{flex:1,border:`0.5px solid ${C.border}`,borderRadius:8,padding:"6px 10px",fontSize:13,background:C.bg,color:C.text}}/>
+                  <button onClick={()=>addSub(g.id)} style={{border:`0.5px solid ${C.accent}`,borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:500,background:"none",color:C.accent,cursor:"pointer"}}>Add</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── NOTES ── */
+function NotesPage({userId,C}) {
+  const [notes,setNotes]=useState([]); const [active,setActive]=useState(null); const [loading,setLoading]=useState(true);
+  const [mobileView,setMobileView]=useState("list"); // "list" | "editor"
+  const timer=useRef(null);
+
+  useEffect(()=>{(async()=>{
+    const {data}=await sb.from("notes").select("*").order("updated_at",{ascending:false});
+    setNotes(data||[]); if(data&&data.length) setActive(data[0].id); setLoading(false);
+  })();},[]);
+
+  const addNote=async()=>{
+    const id=Date.now().toString();
+    const {data}=await sb.from("notes").insert({id,title:"Untitled",content:"",user_id:userId}).select().single();
+    if(data){setNotes(n=>[data,...n]);setActive(data.id);setMobileView("editor");}
+  };
+
+  const delNote=async(id)=>{
+    await sb.from("notes").delete().eq("id",id);
+    const r=notes.filter(n=>n.id!==id); setNotes(r);
+    setActive(r.length?r[0].id:null);
+    setMobileView("list");
+  };
+
+  const update=(id,field,val)=>{
+    setNotes(n=>n.map(x=>x.id===id?{...x,[field]:val}:x));
+    clearTimeout(timer.current);
+    timer.current=setTimeout(async()=>{ await sb.from("notes").update({[field]:val,updated_at:new Date().toISOString()}).eq("id",id); },600);
+  };
+
+  const openNote=(id)=>{ setActive(id); setMobileView("editor"); };
+  const activeNote=notes.find(n=>n.id===active);
+
+  const fmtDate=(d)=>d?new Date(d).toLocaleDateString("en-NL",{month:"short",day:"numeric"}):"";
+
+  if(loading) return <Spinner C={C}/>;
+
+  return (
+    <div className="fadein">
+      {/* ── Desktop: side by side ── */}
+      <div className="notes-desktop" style={{display:"flex",gap:16}}>
+        <div style={{width:200,flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:13,fontWeight:500,color:C.muted}}>Notes</span>
+            <button onClick={addNote} style={{fontSize:20,color:C.accent,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"0 2px"}}>+</button>
+          </div>
+          {notes.length===0&&<p style={{fontSize:13,color:C.faint}}>No notes yet.</p>}
+          {notes.map(n=>(
+            <div key={n.id} onClick={()=>openNote(n.id)} style={{padding:"9px 10px",borderRadius:9,marginBottom:4,cursor:"pointer",background:n.id===active?C.accentDark+"22":"transparent",border:`0.5px solid ${n.id===active?C.accent+"55":"transparent"}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,color:n.id===active?C.accent:C.text,fontWeight:n.id===active?500:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.title||"Untitled"}</div>
+                <div style={{fontSize:11,color:C.faint,marginTop:2}}>{fmtDate(n.updated_at)}</div>
+              </div>
+              <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{fontSize:15,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1,flexShrink:0}}>&times;</button>
+            </div>
+          ))}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          {activeNote?(
+            <>
+              <input value={activeNote.title} onChange={e=>update(activeNote.id,"title",e.target.value)}
+                style={{width:"100%",fontSize:20,fontWeight:500,letterSpacing:"-0.02em",border:"none",background:"transparent",color:C.text,marginBottom:14,padding:0}} placeholder="Title"/>
+              <RichEditor value={activeNote.content} onChange={v=>update(activeNote.id,"content",v)} placeholder="Start writing..." C={C}/>
+            </>
+          ):(
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200}}>
+              <button onClick={addNote} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"10px 20px",fontSize:14,color:C.accent,background:"none",cursor:"pointer"}}>New note</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Mobile: list view ── */}
+      <div className="notes-mobile">
+        {mobileView==="list"&&(
+          <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <h2 style={{fontSize:22,fontWeight:500,color:C.text,letterSpacing:"-0.02em"}}>Notes</h2>
+              <button onClick={addNote} style={{fontSize:14,fontWeight:500,color:"#fff",background:C.accent,border:"none",borderRadius:9,padding:"7px 14px",cursor:"pointer"}}>+ New</button>
+            </div>
+            {notes.length===0&&(
+              <div style={{textAlign:"center",padding:"3rem 0"}}>
+                <p style={{fontSize:14,color:C.faint,marginBottom:16}}>No notes yet.</p>
+                <button onClick={addNote} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"10px 20px",fontSize:14,color:C.accent,background:"none",cursor:"pointer"}}>Create your first note</button>
+              </div>
+            )}
+            {notes.map(n=>(
+              <div key={n.id} onClick={()=>openNote(n.id)} style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:15,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{n.title||"Untitled"}</div>
+                  <div style={{fontSize:12,color:C.faint}}>{fmtDate(n.updated_at)}</div>
+                </div>
+                <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{fontSize:18,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"4px",flexShrink:0}}>&times;</button>
+              </div>
+            ))}
+          </>
+        )}
+
+        {mobileView==="editor"&&activeNote&&(
+          <>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+              <button onClick={()=>setMobileView("list")} style={{fontSize:13,color:C.accent,background:"none",border:`0.5px solid ${C.accent}44`,borderRadius:8,padding:"6px 12px",cursor:"pointer",flexShrink:0}}>← Notes</button>
+              <input value={activeNote.title} onChange={e=>update(activeNote.id,"title",e.target.value)}
+                style={{flex:1,fontSize:18,fontWeight:500,letterSpacing:"-0.02em",border:"none",background:"transparent",color:C.text,padding:0,minWidth:0}} placeholder="Title"/>
+              <button onClick={()=>delNote(activeNote.id)} style={{fontSize:18,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"4px",flexShrink:0}}>&times;</button>
+            </div>
+            <RichEditor value={activeNote.content} onChange={v=>update(activeNote.id,"content",v)} placeholder="Start writing..." C={C}/>
+          </>
+        )}
+      </div>
+
+      <style>{`
+        .notes-desktop { display: flex; }
+        .notes-mobile  { display: none; }
+        @media (max-width: 639px) {
+          .notes-desktop { display: none !important; }
+          .notes-mobile  { display: block !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── OVERVIEW ── */
+function OverviewPage({habits,completions,C}) {
+  const days=last90();
+  const globalStreak=useMemo(()=>{
+    if(!habits.length) return 0; let s=0; const d=new Date();
+    while(true){ const k=d.toISOString().slice(0,10); if(habits.every(h=>completions.find(c=>c.habit_id===h.id&&c.date===k))){s++;d.setDate(d.getDate()-1);}else break; } return s;
+  },[habits,completions]);
+  const totalDone=completions.filter(c=>days.includes(c.date)).length;
+  const heatFills=["#EDE5D8","#E8C890","#D4A050",C.accent,C.accentDark];
+  return (
+    <div className="fadein">
+      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Overview</h2>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:"2rem"}}>
+        {[{label:"Global streak",value:`${globalStreak}d`},{label:"Total habits",value:habits.length},{label:"Done (90d)",value:totalDone}].map(s=>(
+          <div key={s.label} style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px"}}>
+            <div style={{fontSize:11,color:C.faint,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.05em"}}>{s.label}</div>
+            <div style={{fontSize:22,fontWeight:500,color:C.accent}}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{marginBottom:"2rem"}}>
+        <div style={{fontSize:12,fontWeight:500,color:C.faint,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>Streaks</div>
+        {habits.map(h=>{
+          const streak=computeStreak(h.id,completions); const longest=computeLongest(h.id,completions);
+          const pct=longest?Math.round((streak/longest)*100):0;
+          return (
+            <div key={h.id} style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:4}}>
+                <span style={{color:C.text,fontWeight:500}}>{h.name}</span>
+                <span style={{color:C.muted}}>{streak}d <span style={{color:C.faint}}>/ best {longest}d</span></span>
+              </div>
+              <div style={{height:5,borderRadius:4,background:C.border,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:streak===longest&&longest>0?C.done:C.accent,borderRadius:4,transition:"width 0.4s"}}/>
+              </div>
+            </div>
+          );
+        })}
+        {habits.length===0&&<p style={{color:C.faint,fontSize:14}}>No habits tracked yet.</p>}
+      </div>
+      <div>
+        <div style={{fontSize:12,fontWeight:500,color:C.faint,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>90-day heatmap</div>
+        <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+          {days.map(d=>{
+            const count=completions.filter(c=>c.date===d).length;
+            const level=count===0?0:count<2?1:count<habits.length*0.5?2:count<habits.length?3:4;
+            return <div key={d} title={d} style={{width:13,height:13,borderRadius:3,background:heatFills[level],flexShrink:0}}/>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center",marginTop:8}}>
+          <span style={{fontSize:11,color:C.faint}}>Less</span>
+          {heatFills.map((f,i)=><div key={i} style={{width:11,height:11,borderRadius:2,background:f}}/>)}
+          <span style={{fontSize:11,color:C.faint}}>More</span>
+        </div>
+      </div>
+    </div>
+  );
+}
