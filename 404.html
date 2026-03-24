@@ -1,13 +1,13 @@
+
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
   <script>
-    const url = window.location.href;
-    const base = window.location.origin + "/Cones/";
-    const rest = url.replace(window.location.origin, "");
-    sessionStorage.setItem("cones_redirect", rest);
-    window.location.replace(base);
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const base = "https://max-bos.github.io/Cones/";
+    window.location.replace(base + search + hash);
   </script>
 </head>
 <body></body>
