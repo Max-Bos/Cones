@@ -123,10 +123,23 @@ function AuthPage({C}) {
     setError("");setLoading(true);
     if(mode==="login"){
       const {error:e}=await sb.auth.signInWithPassword({email,password});
-      if(e) setError(e.message);
+      if(e){
+        if(e.message.toLowerCase().includes("invalid login")) setError("Incorrect email or password.");
+        else setError(e.message);
+      }
     } else {
-      const {error:e}=await sb.auth.signUp({email,password});
-      if(e) setError(e.message); else setSent(true);
+      if(!email.includes("@")){setError("Enter a valid email address.");setLoading(false);return;}
+      if(password.length<6){setError("Password must be at least 6 characters.");setLoading(false);return;}
+      const {data,error:e}=await sb.auth.signUp({email,password});
+      if(e){
+        if(e.message.toLowerCase().includes("already registered")||e.message.toLowerCase().includes("user already exists"))
+          setError("An account with this email already exists. Sign in instead.");
+        else setError(e.message);
+      } else if(data?.user?.identities?.length===0){
+        setError("An account with this email already exists. Sign in instead.");
+      } else {
+        setSent(true);
+      }
     }
     setLoading(false);
   };
@@ -544,55 +557,122 @@ function GoalsPage({userId,C}) {
 /* ── NOTES ── */
 function NotesPage({userId,C}) {
   const [notes,setNotes]=useState([]); const [active,setActive]=useState(null); const [loading,setLoading]=useState(true);
+  const [mobileView,setMobileView]=useState("list"); // "list" | "editor"
   const timer=useRef(null);
+
   useEffect(()=>{(async()=>{
     const {data}=await sb.from("notes").select("*").order("updated_at",{ascending:false});
     setNotes(data||[]); if(data&&data.length) setActive(data[0].id); setLoading(false);
   })();},[]);
+
   const addNote=async()=>{
     const id=Date.now().toString();
     const {data}=await sb.from("notes").insert({id,title:"Untitled",content:"",user_id:userId}).select().single();
-    if(data){setNotes(n=>[data,...n]);setActive(data.id);}
+    if(data){setNotes(n=>[data,...n]);setActive(data.id);setMobileView("editor");}
   };
+
   const delNote=async(id)=>{
     await sb.from("notes").delete().eq("id",id);
-    const r=notes.filter(n=>n.id!==id); setNotes(r); setActive(r.length?r[0].id:null);
+    const r=notes.filter(n=>n.id!==id); setNotes(r);
+    setActive(r.length?r[0].id:null);
+    setMobileView("list");
   };
+
   const update=(id,field,val)=>{
     setNotes(n=>n.map(x=>x.id===id?{...x,[field]:val}:x));
     clearTimeout(timer.current);
     timer.current=setTimeout(async()=>{ await sb.from("notes").update({[field]:val,updated_at:new Date().toISOString()}).eq("id",id); },600);
   };
+
+  const openNote=(id)=>{ setActive(id); setMobileView("editor"); };
   const activeNote=notes.find(n=>n.id===active);
+
+  const fmtDate=(d)=>d?new Date(d).toLocaleDateString("en-NL",{month:"short",day:"numeric"}):"";;
+
   if(loading) return <Spinner C={C}/>;
+
   return (
-    <div className="fadein" style={{display:"flex",gap:16}}>
-      <div style={{width:180,flexShrink:0}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <span style={{fontSize:13,fontWeight:500,color:C.muted}}>Notes</span>
-          <button onClick={addNote} style={{fontSize:18,color:C.accent,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>+</button>
-        </div>
-        {notes.length===0&&<p style={{fontSize:13,color:C.faint}}>No notes yet.</p>}
-        {notes.map(n=>(
-          <div key={n.id} onClick={()=>setActive(n.id)} style={{padding:"8px 10px",borderRadius:8,marginBottom:4,cursor:"pointer",background:n.id===active?C.accentDark+"22":"transparent",border:`0.5px solid ${n.id===active?C.accent+"44":"transparent"}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:13,color:n.id===active?C.accent:C.text,fontWeight:n.id===active?500:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{n.title||"Untitled"}</span>
-            <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{fontSize:14,color:C.faint,background:"none",border:"none",cursor:"pointer",marginLeft:4,lineHeight:1,flexShrink:0}}>&times;</button>
+    <div className="fadein">
+      {/* ── Desktop: side by side ── */}
+      <div className="notes-desktop" style={{display:"flex",gap:16}}>
+        <div style={{width:200,flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:13,fontWeight:500,color:C.muted}}>Notes</span>
+            <button onClick={addNote} style={{fontSize:20,color:C.accent,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"0 2px"}}>+</button>
           </div>
-        ))}
+          {notes.length===0&&<p style={{fontSize:13,color:C.faint}}>No notes yet.</p>}
+          {notes.map(n=>(
+            <div key={n.id} onClick={()=>openNote(n.id)} style={{padding:"9px 10px",borderRadius:9,marginBottom:4,cursor:"pointer",background:n.id===active?C.accentDark+"22":"transparent",border:`0.5px solid ${n.id===active?C.accent+"55":"transparent"}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,color:n.id===active?C.accent:C.text,fontWeight:n.id===active?500:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.title||"Untitled"}</div>
+                <div style={{fontSize:11,color:C.faint,marginTop:2}}>{fmtDate(n.updated_at)}</div>
+              </div>
+              <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{fontSize:15,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1,flexShrink:0}}>&times;</button>
+            </div>
+          ))}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          {activeNote?(
+            <>
+              <input value={activeNote.title} onChange={e=>update(activeNote.id,"title",e.target.value)}
+                style={{width:"100%",fontSize:20,fontWeight:500,letterSpacing:"-0.02em",border:"none",background:"transparent",color:C.text,marginBottom:14,padding:0}} placeholder="Title"/>
+              <RichEditor value={activeNote.content} onChange={v=>update(activeNote.id,"content",v)} placeholder="Start writing..." C={C}/>
+            </>
+          ):(
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200}}>
+              <button onClick={addNote} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"10px 20px",fontSize:14,color:C.accent,background:"none",cursor:"pointer"}}>New note</button>
+            </div>
+          )}
+        </div>
       </div>
-      <div style={{flex:1,minWidth:0}}>
-        {activeNote?(
+
+      {/* ── Mobile: list view ── */}
+      <div className="notes-mobile">
+        {mobileView==="list"&&(
           <>
-            <input value={activeNote.title} onChange={e=>update(activeNote.id,"title",e.target.value)}
-              style={{width:"100%",fontSize:20,fontWeight:500,letterSpacing:"-0.02em",border:"none",background:"transparent",color:C.text,marginBottom:14,padding:0}} placeholder="Title"/>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <h2 style={{fontSize:22,fontWeight:500,color:C.text,letterSpacing:"-0.02em"}}>Notes</h2>
+              <button onClick={addNote} style={{fontSize:14,fontWeight:500,color:"#fff",background:C.accent,border:"none",borderRadius:9,padding:"7px 14px",cursor:"pointer"}}>+ New</button>
+            </div>
+            {notes.length===0&&(
+              <div style={{textAlign:"center",padding:"3rem 0"}}>
+                <p style={{fontSize:14,color:C.faint,marginBottom:16}}>No notes yet.</p>
+                <button onClick={addNote} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"10px 20px",fontSize:14,color:C.accent,background:"none",cursor:"pointer"}}>Create your first note</button>
+              </div>
+            )}
+            {notes.map(n=>(
+              <div key={n.id} onClick={()=>openNote(n.id)} style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:15,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{n.title||"Untitled"}</div>
+                  <div style={{fontSize:12,color:C.faint}}>{fmtDate(n.updated_at)}</div>
+                </div>
+                <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{fontSize:18,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"4px",flexShrink:0}}>&times;</button>
+              </div>
+            ))}
+          </>
+        )}
+
+        {mobileView==="editor"&&activeNote&&(
+          <>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+              <button onClick={()=>setMobileView("list")} style={{fontSize:13,color:C.accent,background:"none",border:`0.5px solid ${C.accent}44`,borderRadius:8,padding:"6px 12px",cursor:"pointer",flexShrink:0}}>← Notes</button>
+              <input value={activeNote.title} onChange={e=>update(activeNote.id,"title",e.target.value)}
+                style={{flex:1,fontSize:18,fontWeight:500,letterSpacing:"-0.02em",border:"none",background:"transparent",color:C.text,padding:0,minWidth:0}} placeholder="Title"/>
+              <button onClick={()=>delNote(activeNote.id)} style={{fontSize:18,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"4px",flexShrink:0}}>&times;</button>
+            </div>
             <RichEditor value={activeNote.content} onChange={v=>update(activeNote.id,"content",v)} placeholder="Start writing..." C={C}/>
           </>
-        ):(
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:200}}>
-            <button onClick={addNote} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"10px 20px",fontSize:14,color:C.accent,background:"none",cursor:"pointer"}}>New note</button>
-          </div>
         )}
       </div>
+
+      <style>{`
+        .notes-desktop { display: flex; }
+        .notes-mobile  { display: none; }
+        @media (max-width: 639px) {
+          .notes-desktop { display: none !important; }
+          .notes-mobile  { display: block !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -687,8 +767,19 @@ function App() {
     if(!user||needsMFA) return;
     (async()=>{
       setLoading(true);
-      const [{data:h},{data:c}]=await Promise.all([sb.from("habits").select("*").order("created_at"),sb.from("completions").select("*")]);
-      setHabits(h||[]); setCompletions(c||[]); setLoading(false);
+      try {
+        const [{data:h,error:he},{data:c,error:ce}]=await Promise.all([
+          sb.from("habits").select("*").order("created_at"),
+          sb.from("completions").select("*"),
+        ]);
+        if(he) console.error("habits error:",he);
+        if(ce) console.error("completions error:",ce);
+        setHabits(h||[]); setCompletions(c||[]);
+      } catch(e) {
+        console.error("fetch error:",e);
+      } finally {
+        setLoading(false);
+      }
     })();
   },[user,needsMFA]);
 
