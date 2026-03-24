@@ -32,6 +32,18 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useMemo } = React;
 
+// Handle Supabase auth redirect tokens in the URL hash
+if (window.location.hash && window.location.hash.includes("access_token")) {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (accessToken && refreshToken) {
+    sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(() => { window.history.replaceState(null, "", window.location.pathname); });
+  }
+}
+
 const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
