@@ -9,3 +9,14 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
     .fadein { animation: fadein 0.18s ease; }
+
+    /* Two-column habit grid on wide screens */
+    @media (min-width: 900px) {
+      .habits-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .habits-grid > div { margin-bottom: 0; }
+      .heat-cell { width: 16px !important; height: 16px !important; }
+    }

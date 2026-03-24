@@ -86,7 +86,7 @@ function SettingsPage({user,C,dark,setDark,reminder,setReminder,onSignOut}) {
 
   return (
     <div className="fadein">
-      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Settings</h2>
+      <h2 className="page-heading" style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Settings</h2>
 
       {/* Account */}
       <div style={card}>
@@ -150,11 +150,12 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
 
   return (
     <div className="fadein">
-      <div style={{marginBottom:"1.75rem"}}>
+      <div className="page-heading" style={{marginBottom:"1.75rem"}}>
         <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text}}>Today</h2>
         <p style={{fontSize:13,color:C.muted,marginTop:4}}>{dateStr}</p>
       </div>
       {habits.length===0&&<p style={{color:C.faint,fontSize:14,padding:"2rem 0",textAlign:"center"}}>No habits yet — add some in Habits.</p>}
+      <div className={habits.length>=4?"habits-grid":""}>
       {habits.map(h=>{
         const comp=completions.find(c=>c.habit_id===h.id&&c.date===today);
         const done=!!comp; const streak=computeStreak(h.id,completions);
@@ -185,6 +186,7 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
           </div>
         );
       })}
+      </div>
       {habits.length>0&&(
         <div style={{marginTop:"2rem",paddingTop:"1.5rem",borderTop:`0.5px solid ${C.border}`}}>
           <div style={{fontSize:12,fontWeight:500,color:C.faint,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"0.75rem"}}>Today's progress</div>
@@ -248,7 +250,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 
   return (
     <div className="fadein">
-      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Habits</h2>
+      <h2 className="page-heading" style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Habits</h2>
       <div style={{display:"flex",gap:8,marginBottom:"1.5rem",flexWrap:"wrap"}}>
         <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New habit..."
           style={{flex:1,minWidth:140,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"8px 12px",fontSize:14,background:C.surface,color:C.text}}/>
@@ -322,7 +324,7 @@ function GoalsPage({userId,C}) {
   if(loading) return <Spinner C={C}/>;
   return (
     <div className="fadein">
-      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Goals</h2>
+      <h2 className="page-heading" style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Goals</h2>
       <div style={{display:"flex",gap:8,marginBottom:"1.5rem"}}>
         <input value={newGoal} onChange={e=>setNewGoal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addGoal()} placeholder="New goal..."
           style={{flex:1,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"8px 12px",fontSize:14,background:C.surface,color:C.text}}/>
@@ -431,7 +433,7 @@ function NotesPage({userId,C}) {
     <div className="fadein">
       {/* ── Desktop: side by side ── */}
       <div className="notes-desktop" style={{display:"flex",gap:16}}>
-        <div style={{width:200,flexShrink:0}}>
+        <div style={{width:240,flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <span style={{fontSize:13,fontWeight:500,color:C.muted}}>Notes</span>
             <button onClick={addNote} style={{fontSize:20,color:C.accent,background:"none",border:"none",cursor:"pointer",lineHeight:1,padding:"0 2px"}}>+</button>
@@ -524,7 +526,7 @@ function OverviewPage({habits,completions,C}) {
   const heatFills=["#EDE5D8","#E8C890","#D4A050",C.accent,C.accentDark];
   return (
     <div className="fadein">
-      <h2 style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Overview</h2>
+      <h2 className="page-heading" style={{fontSize:22,fontWeight:500,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.75rem"}}>Overview</h2>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:"2rem"}}>
         {[{label:"Global streak",value:`${globalStreak}d`},{label:"Total habits",value:habits.length},{label:"Done (90d)",value:totalDone}].map(s=>(
           <div key={s.label} style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px"}}>
@@ -558,7 +560,7 @@ function OverviewPage({habits,completions,C}) {
           {days.map(d=>{
             const count=completions.filter(c=>c.date===d).length;
             const level=count===0?0:count<2?1:count<habits.length*0.5?2:count<habits.length?3:4;
-            return <div key={d} title={d} style={{width:13,height:13,borderRadius:3,background:heatFills[level],flexShrink:0}}/>;
+            return <div key={d} title={d} className="heat-cell" style={{width:13,height:13,borderRadius:3,background:heatFills[level],flexShrink:0}}/>;
           })}
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",marginTop:8}}>
