@@ -69,90 +69,8 @@ function AuthPage({C}) {
   );
 }
 
-/* ── 2FA VERIFY (after login) ── */
-function TwoFAVerify({C,onVerified}) {
-  const [code,setCode]=useState("");
-  const [error,setError]=useState("");
-  const [loading,setLoading]=useState(false);
-
-  const verify=async()=>{
-    setError("");setLoading(true);
-    const factors=await sb.auth.mfa.listFactors();
-    const totp=factors.data?.totp?.[0];
-    if(!totp){onVerified();return;}
-    const {data:challenge,error:ce}=await sb.auth.mfa.challenge({factorId:totp.id});
-    if(ce){setError(ce.message);setLoading(false);return;}
-    const {error:ve}=await sb.auth.mfa.verify({factorId:totp.id,challengeId:challenge.id,code});
-    if(ve) setError("Invalid code. Try again."); else onVerified();
-    setLoading(false);
-  };
-
-  return (
-    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
-      <div style={{maxWidth:340,width:"100%"}}>
-        <h1 style={{fontSize:24,fontWeight:600,color:C.accent,textAlign:"center",marginBottom:6}}>Cones</h1>
-        <p style={{fontSize:13,color:C.muted,textAlign:"center",marginBottom:28}}>Two-factor authentication</p>
-        <div style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:16,padding:"24px 20px"}}>
-          <p style={{fontSize:14,color:C.text,marginBottom:16}}>Enter the 6-digit code from your authenticator app.</p>
-          <input type="number" placeholder="000000" value={code} onChange={e=>setCode(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&verify()}
-            style={{width:"100%",border:`0.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:22,letterSpacing:"0.2em",textAlign:"center",background:C.bg,color:C.text,marginBottom:12}}/>
-          {error&&<p style={{fontSize:12,color:C.danger,marginBottom:10}}>{error}</p>}
-          <button onClick={verify} disabled={loading} style={{width:"100%",border:"none",borderRadius:10,padding:"11px 0",fontSize:14,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer",opacity:loading?0.7:1}}>
-            {loading?"...":"Verify"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── SETTINGS PAGE ── */
 function SettingsPage({user,C,dark,setDark,reminder,setReminder,onSignOut}) {
-  const [mfaStatus,setMfaStatus]=useState(null);
-  const [enrolling,setEnrolling]=useState(false);
-  const [qr,setQr]=useState("");
-  const [secret,setSecret]=useState("");
-  const [factorId,setFactorId]=useState("");
-  const [code,setCode]=useState("");
-  const [codeError,setCodeError]=useState("");
-  const [loading,setLoading]=useState(false);
-  const [msg,setMsg]=useState("");
-
-  useEffect(()=>{
-    (async()=>{
-      const {data}=await sb.auth.mfa.listFactors();
-      const verified=data?.totp?.find(f=>f.status==="verified");
-      setMfaStatus(verified??"off");
-    })();
-  },[]);
-
-  const startEnroll=async()=>{
-    setLoading(true);setMsg("");
-    const {data,error}=await sb.auth.mfa.enroll({factorType:"totp",friendlyName:"Cones"});
-    if(error){setMsg(error.message);setLoading(false);return;}
-    setQr(data.totp.qr_code);
-    setSecret(data.totp.secret);
-    setFactorId(data.id);
-    setEnrolling(true);setLoading(false);
-  };
-
-  const confirmEnroll=async()=>{
-    setCodeError("");setLoading(true);
-    const {data:challenge,error:ce}=await sb.auth.mfa.challenge({factorId});
-    if(ce){setCodeError(ce.message);setLoading(false);return;}
-    const {error:ve}=await sb.auth.mfa.verify({factorId,challengeId:challenge.id,code});
-    if(ve){setCodeError("Invalid code — try again.");setLoading(false);return;}
-    setEnrolling(false);setMfaStatus({id:factorId});setMsg("2FA enabled ✓");setLoading(false);
-  };
-
-  const disable2FA=async()=>{
-    if(!window.confirm("Disable 2FA?")) return;
-    setLoading(true);
-    await sb.auth.mfa.unenroll({factorId:mfaStatus.id});
-    setMfaStatus("off");setMsg("2FA disabled.");setLoading(false);
-  };
-
   const requestReminder=async()=>{
     if(!("Notification"in window)) return alert("Notifications not supported.");
     const perm=await Notification.requestPermission();
@@ -197,46 +115,6 @@ function SettingsPage({user,C,dark,setDark,reminder,setReminder,onSignOut}) {
         </div>
       </div>
 
-      {/* 2FA */}
-      <div style={card}>
-        <p style={{fontSize:11,color:C.faint,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Two-factor authentication</p>
-        {mfaStatus===null&&<p style={{fontSize:13,color:C.faint}}>Loading...</p>}
-
-        {mfaStatus==="off"&&!enrolling&&(
-          <div style={row}>
-            <span style={{fontSize:14,color:C.text}}>2FA is off</span>
-            <button onClick={startEnroll} disabled={loading} style={btn(false)}>{loading?"...":"Enable 2FA"}</button>
-          </div>
-        )}
-
-        {mfaStatus!=="off"&&mfaStatus!==null&&!enrolling&&(
-          <div style={row}>
-            <span style={{fontSize:14,color:C.done}}>2FA is on ✓</span>
-            <button onClick={disable2FA} disabled={loading} style={btn(true)}>{loading?"...":"Disable"}</button>
-          </div>
-        )}
-
-        {enrolling&&(
-          <div>
-            <p style={{fontSize:13,color:C.muted,marginBottom:12}}>Scan this QR code with Google Authenticator, Authy, or any TOTP app, then enter the 6-digit code to confirm.</p>
-            <div style={{textAlign:"center",marginBottom:12}}>
-              <img src={qr} alt="QR code" style={{width:160,height:160,borderRadius:8,background:"#fff",padding:6}}/>
-            </div>
-            <p style={{fontSize:11,color:C.faint,textAlign:"center",marginBottom:14,wordBreak:"break-all"}}>Manual key: {secret}</p>
-            <input type="number" placeholder="6-digit code" value={code} onChange={e=>setCode(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&confirmEnroll()}
-              style={{width:"100%",border:`0.5px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:20,letterSpacing:"0.15em",textAlign:"center",background:C.bg,color:C.text,marginBottom:8}}/>
-            {codeError&&<p style={{fontSize:12,color:C.danger,marginBottom:8}}>{codeError}</p>}
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>setEnrolling(false)} style={{...btn(false),flex:1,color:C.muted}}>Cancel</button>
-              <button onClick={confirmEnroll} disabled={loading} style={{flex:2,border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer",opacity:loading?0.7:1}}>
-                {loading?"...":"Confirm"}
-              </button>
-            </div>
-          </div>
-        )}
-        {msg&&<p style={{fontSize:12,color:C.done,marginTop:10}}>{msg}</p>}
-      </div>
     </div>
   );
 }
@@ -327,13 +205,46 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
 /* ── HABITS ── */
 function HabitsPage({habits,setHabits,completions,userId,C}) {
   const [newName,setNewName]=useState(""); const [newTag,setNewTag]=useState("Other"); const [saving,setSaving]=useState(false);
+  const [editingId,setEditingId]=useState(null);
+  const [editVal,setEditVal]=useState("");
+  const [dragId,setDragId]=useState(null);
+  const [dragOverId,setDragOverId]=useState(null);
+  const suppressBlurSave=useRef(false);
   const add=async()=>{
     if(!newName.trim()) return; setSaving(true);
     const id=Date.now().toString();
-    const {data}=await sb.from("habits").insert({id,name:newName.trim(),tag:newTag,user_id:userId}).select().single();
+    const {data}=await sb.from("habits").insert({id,name:newName.trim(),tag:newTag,user_id:userId,position:habits.length}).select().single();
     if(data) setHabits(h=>[...h,data]); setNewName(""); setSaving(false);
   };
   const del=async(id)=>{ await sb.from("habits").delete().eq("id",id); setHabits(h=>h.filter(x=>x.id!==id)); };
+  const startEdit=(habit)=>{ suppressBlurSave.current=false; setEditingId(habit.id); setEditVal(habit.name); };
+  const cancelEdit=()=>{ suppressBlurSave.current=true; setEditingId(null); setEditVal(""); };
+  const onEditBlur=(id)=>{
+    if(suppressBlurSave.current){suppressBlurSave.current=false; return;}
+    saveEdit(id);
+  };
+  const saveEdit=async(id)=>{
+    const val=editVal.trim();
+    if(!val){cancelEdit();return;}
+    await sb.from("habits").update({name:val}).eq("id",id);
+    setHabits(h=>h.map(x=>x.id===id?{...x,name:val}:x));
+    cancelEdit();
+  };
+  const reorderHabits=async(next)=>{
+    setHabits(next.map((h,index)=>({...h,position:index})));
+    await Promise.all(next.map((habit,index)=>sb.from("habits").update({position:index}).eq("id",habit.id)));
+  };
+  const onDrop=async(targetId)=>{
+    if(!dragId||dragId===targetId){setDragId(null);setDragOverId(null);return;}
+    const from=habits.findIndex(h=>h.id===dragId);
+    const to=habits.findIndex(h=>h.id===targetId);
+    if(from<0||to<0){setDragId(null);setDragOverId(null);return;}
+    const next=[...habits];
+    const [moved]=next.splice(from,1);
+    next.splice(to,0,moved);
+    setDragId(null); setDragOverId(null);
+    await reorderHabits(next);
+  };
 
   return (
     <div className="fadein">
@@ -357,10 +268,17 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
             {group.map(h=>{
               const streak=computeStreak(h.id,completions); const longest=computeLongest(h.id,completions);
               return (
-                <div key={h.id} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginBottom:6}}>
-                  <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{h.name}</span>
+                <div key={h.id} draggable={true} onDragStart={()=>setDragId(h.id)} onDragOver={e=>{e.preventDefault();setDragOverId(h.id);}} onDragLeave={()=>dragOverId===h.id&&setDragOverId(null)} onDrop={e=>{e.preventDefault();onDrop(h.id);}} onDragEnd={()=>{setDragId(null);setDragOverId(null);}} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,border:`0.5px solid ${dragOverId===h.id?C.accent:C.border}`,borderRadius:10,padding:"12px 14px",marginBottom:6}}>
+                  <span style={{fontSize:16,color:C.faint,cursor:"grab",userSelect:"none"}}>⠿</span>
+                  {editingId===h.id?(
+                    <input value={editVal} autoFocus onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();saveEdit(h.id);} if(e.key==="Escape"){e.preventDefault();cancelEdit();}}} onBlur={()=>onEditBlur(h.id)}
+                      style={{flex:1,fontSize:14,fontWeight:500,color:C.text,border:`0.5px solid ${C.border}`,borderRadius:8,padding:"4px 8px",background:C.bg}}/>
+                  ):(
+                    <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{h.name}</span>
+                  )}
                   <span style={{fontSize:12,color:C.muted}}>🔥 {streak}d</span>
                   <span style={{fontSize:12,color:C.faint}}>best {longest}d</span>
+                  <button aria-label={`Edit habit: ${h.name}`} onClick={()=>startEdit(h)} style={{fontSize:14,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>✎</button>
                   <button onClick={()=>del(h.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
                 </div>
               );
@@ -376,16 +294,23 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 function GoalsPage({userId,C}) {
   const [goals,setGoals]=useState([]); const [subs,setSubs]=useState([]); const [loading,setLoading]=useState(true);
   const [newGoal,setNewGoal]=useState(""); const [newSub,setNewSub]=useState({}); const [expanded,setExpanded]=useState({});
+  const [showArchived,setShowArchived]=useState(false);
   useEffect(()=>{(async()=>{
     const [{data:g},{data:s}]=await Promise.all([sb.from("goals").select("*").order("created_at"),sb.from("subtasks").select("*")]);
     setGoals(g||[]); setSubs(s||[]); setLoading(false);
   })();},[]);
+  const activeGoals=goals.filter(g=>!g.archived);
+  const archivedGoals=goals.filter(g=>g.archived);
   const addGoal=async()=>{
     if(!newGoal.trim()) return; const id=Date.now().toString();
-    const {data}=await sb.from("goals").insert({id,title:newGoal.trim(),user_id:userId}).select().single();
+    const {data}=await sb.from("goals").insert({id,title:newGoal.trim(),user_id:userId,archived:false}).select().single();
     if(data){setGoals(g=>[...g,data]);setExpanded(e=>({...e,[id]:true}));} setNewGoal("");
   };
   const delGoal=async(id)=>{ await sb.from("goals").delete().eq("id",id); setGoals(g=>g.filter(x=>x.id!==id)); setSubs(s=>s.filter(x=>x.goal_id!==id)); };
+  const setArchived=async(id,archived)=>{
+    await sb.from("goals").update({archived}).eq("id",id);
+    setGoals(g=>g.map(x=>x.id===id?{...x,archived}:x));
+  };
   const addSub=async(gid)=>{
     const title=(newSub[gid]||"").trim(); if(!title) return;
     const id=`${gid}_${Date.now()}`;
@@ -403,8 +328,12 @@ function GoalsPage({userId,C}) {
           style={{flex:1,border:`0.5px solid ${C.border}`,borderRadius:10,padding:"8px 12px",fontSize:14,background:C.surface,color:C.text}}/>
         <button onClick={addGoal} style={{border:`0.5px solid ${C.accent}`,borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:500,background:C.accent,color:"#fff",cursor:"pointer"}}>Add</button>
       </div>
-      {goals.length===0&&<p style={{color:C.faint,fontSize:14,textAlign:"center",padding:"2rem 0"}}>No goals yet.</p>}
-      {goals.map(g=>{
+      <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:13,color:C.muted,marginBottom:"1rem",cursor:"pointer"}}>
+        <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/>
+        Show archived
+      </label>
+      {activeGoals.length===0&&<p style={{color:C.faint,fontSize:14,textAlign:"center",padding:"2rem 0"}}>No goals yet.</p>}
+      {activeGoals.map(g=>{
         const gSubs=subs.filter(s=>s.goal_id===g.id); const done=gSubs.filter(s=>s.done).length;
         const pct=gSubs.length?Math.round((done/gSubs.length)*100):0; const isOpen=!!expanded[g.id];
         return (
@@ -413,6 +342,7 @@ function GoalsPage({userId,C}) {
               <span style={{flex:1,fontSize:15,fontWeight:500,color:C.text}}>{g.title}</span>
               <span style={{fontSize:12,color:C.muted}}>{pct}%</span>
               <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{fontSize:11,color:C.faint,background:"none",border:"none",cursor:"pointer"}}>{isOpen?"▲":"▼"}</button>
+              {pct===100&&<button aria-label={`Archive goal: ${g.title}`} onClick={()=>setArchived(g.id,true)} style={{fontSize:12,color:C.accent,background:"none",border:`0.5px solid ${C.accent}66`,borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>Archive</button>}
               <button onClick={()=>delGoal(g.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
             </div>
             {gSubs.length>0&&<div style={{height:4,borderRadius:4,background:C.border,overflow:"hidden",marginBottom:isOpen?10:0}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:C.accent,borderRadius:4,transition:"width 0.3s"}}/></div>}
@@ -437,6 +367,25 @@ function GoalsPage({userId,C}) {
           </div>
         );
       })}
+      {showArchived&&archivedGoals.length>0&&(
+        <div style={{marginTop:"2rem"}}>
+          <div style={{fontSize:11,fontWeight:500,color:C.faint,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:8}}>Archived</div>
+          {archivedGoals.map(g=>{
+            const gSubs=subs.filter(s=>s.goal_id===g.id); const done=gSubs.filter(s=>s.done).length;
+            const pct=gSubs.length?Math.round((done/gSubs.length)*100):0;
+            return (
+              <div key={g.id} style={{background:C.surface,border:`0.5px solid ${C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:10,opacity:0.7}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{flex:1,fontSize:15,fontWeight:500,color:C.text}}>{g.title}</span>
+                  <span style={{fontSize:12,color:C.muted}}>{pct}%</span>
+                  <button aria-label={`Unarchive goal: ${g.title}`} onClick={()=>setArchived(g.id,false)} style={{fontSize:12,color:C.accent,background:"none",border:`0.5px solid ${C.accent}66`,borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>Unarchive</button>
+                  <button onClick={()=>delGoal(g.id)} style={{fontSize:16,color:C.faint,background:"none",border:"none",cursor:"pointer",lineHeight:1}}>&times;</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
