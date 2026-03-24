@@ -1,0 +1,11 @@
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; transition: background 0.2s, color 0.2s; }
+    input, textarea, button, select { font-family: inherit; }
+    textarea { resize: none; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #C4884A44; border-radius: 4px; }
+    [contenteditable]:focus { outline: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .fadein { animation: fadein 0.18s ease; }
