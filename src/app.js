@@ -7,7 +7,6 @@ function App() {
   const [loading,setLoading]=useState(true);
   const [reminder,setReminder]=useState(null);
   const [user,setUser]=useState(null);
-  const [needsMFA,setNeedsMFA]=useState(false);
 
   const C=dark?DARK:LIGHT;
 
@@ -16,23 +15,21 @@ function App() {
       setUser(session?.user??null);
       if(!session) setLoading(false);
     });
-    const {data:{subscription}}=sb.auth.onAuthStateChange(async(_e,session)=>{
+    const {data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{
       const u=session?.user??null;
       setUser(u);
-      if(!u){setLoading(false);setHabits([]);setCompletions([]);setNeedsMFA(false);return;}
-      const aal=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-      if(aal.data?.nextLevel==="aal2"&&aal.data?.currentLevel==="aal1") setNeedsMFA(true);
+      if(!u){setLoading(false);setHabits([]);setCompletions([]);return;}
     });
     return ()=>subscription.unsubscribe();
   },[]);
 
   useEffect(()=>{
-    if(!user||needsMFA) return;
+    if(!user) return;
     (async()=>{
       setLoading(true);
       try {
         const [{data:h,error:he},{data:c,error:ce}]=await Promise.all([
-          sb.from("habits").select("*").order("created_at"),
+          sb.from("habits").select("*").order("position"),
           sb.from("completions").select("*"),
         ]);
         if(he) console.error("habits error:",he);
@@ -44,7 +41,7 @@ function App() {
         setLoading(false);
       }
     })();
-  },[user,needsMFA]);
+  },[user]);
 
   const signOut=async()=>{ await sb.auth.signOut(); setPage("today"); };
 
@@ -58,7 +55,6 @@ function App() {
   ];
 
   if(!user) return <AuthPage C={C}/>;
-  if(needsMFA) return <TwoFAVerify C={C} onVerified={()=>setNeedsMFA(false)}/>;
   if(loading) return (
     <div style={{background:C.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div><p style={{fontSize:22,fontWeight:500,color:C.text,textAlign:"center",marginBottom:20}}>Cones</p><Spinner C={C}/></div>
