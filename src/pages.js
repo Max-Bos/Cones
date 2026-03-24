@@ -474,7 +474,7 @@ function NotesPage({userId,C}) {
   const openNote=(id)=>{ setActive(id); setMobileView("editor"); };
   const activeNote=notes.find(n=>n.id===active);
 
-  const fmtDate=(d)=>d?new Date(d).toLocaleDateString("en-NL",{month:"short",day:"numeric"}):"";;
+  const fmtDate=(d)=>d?new Date(d).toLocaleDateString("en-NL",{month:"short",day:"numeric"}):"";
 
   if(loading) return <Spinner C={C}/>;
 

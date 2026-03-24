@@ -1,5 +1,9 @@
 const { useState, useEffect, useRef, useMemo } = React;
 
+const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
+const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // Handle Supabase auth redirect tokens in the URL hash
 if (window.location.hash && window.location.hash.includes("access_token")) {
   const hash = window.location.hash.substring(1);
@@ -11,10 +15,6 @@ if (window.location.hash && window.location.hash.includes("access_token")) {
       .then(() => { window.history.replaceState(null, "", window.location.pathname); });
   }
 }
-
-const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
-const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const TAGS = [
   { label:"Health", color:"#5A8A5A", bg:"#EDF5ED" },
