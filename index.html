@@ -4,323 +4,749 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cones</title>
-
-  <!-- PWA -->
   <meta name="theme-color" content="#C4884A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Cones" />
   <link rel="manifest" href="manifest.json" />
-
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
     body {
-      background: #FDFAF6;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: #3D2B1A;
-      min-height: 100vh;
       -webkit-tap-highlight-color: transparent;
+      transition: background 0.2s, color 0.2s;
     }
-    input, textarea, button { font-family: inherit; }
-    input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 2px #C4884A40; }
+    input, textarea, button, select { font-family: inherit; }
     textarea { resize: none; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #C4884A44; border-radius: 4px; }
+    [contenteditable]:focus { outline: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .fadein { animation: fadein 0.18s ease; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-  <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
+const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const TAGS = [
+  { label: "Health",     color: "#5A8A5A", bg: "#EDF5ED" },
+  { label: "Mind",       color: "#6B6BAA", bg: "#EEEEF8" },
+  { label: "Work",       color: "#C4884A", bg: "#FEF3E2" },
+  { label: "Social",     color: "#C45A7A", bg: "#FCEEF3" },
+  { label: "Other",      color: "#8C7560", bg: "#F7F2EA" },
+];
 
-    const W = {
-      bg: "#FDFAF6", surface: "#F7F2EA", border: "#E8DFD0",
-      accent: "#C4884A", accentDark: "#8B5E30",
-      text: "#3D2B1A", muted: "#8C7560", faint: "#B5A08A",
-      done: "#5A8A5A", doneBg: "#EDF5ED",
-      streakBg: "#FEF3E2", streakBorder: "#EAC98A",
-    };
+const LIGHT = {
+  bg: "#FDFAF6", surface: "#F7F2EA", border: "#E8DFD0",
+  accent: "#C4884A", accentDark: "#8B5E30",
+  text: "#3D2B1A", muted: "#8C7560", faint: "#B5A08A",
+  done: "#5A8A5A", doneBg: "#EDF5ED",
+  streakBg: "#FEF3E2", streakBorder: "#EAC98A",
+  nav: "#F2EBE0", navBorder: "#E0D4C0",
+  sidebar: "#F2EBE0",
+};
+const DARK = {
+  bg: "#1A1410", surface: "#251E17", border: "#3A2E22",
+  accent: "#D4985A", accentDark: "#E8B87A",
+  text: "#EDE5D8", muted: "#A08878", faint: "#6A5848",
+  done: "#7AAA7A", doneBg: "#1E2E1E",
+  streakBg: "#2E2010", streakBorder: "#6A4A20",
+  nav: "#201810", navBorder: "#3A2E22",
+  sidebar: "#1E1610",
+};
 
-    const todayKey = () => new Date().toISOString().slice(0, 10);
-    const last30 = () => {
-      const days = [];
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i);
-        days.push(d.toISOString().slice(0, 10));
-      }
-      return days;
-    };
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const last90 = () => {
+  const days = [];
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+};
+const last30 = () => last90().slice(-30);
 
-    const computeStreak = (habitId, completions) => {
-      let streak = 0;
-      const d = new Date();
-      while (true) {
-        const dateStr = d.toISOString().slice(0, 10);
-        const found = completions.find(c => c.habit_id === habitId && c.date === dateStr);
-        if (found) { streak++; d.setDate(d.getDate() - 1); }
-        else break;
-      }
-      return streak;
-    };
+const computeStreak = (habitId, completions) => {
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const dateStr = d.toISOString().slice(0, 10);
+    if (completions.find(c => c.habit_id === habitId && c.date === dateStr)) {
+      streak++; d.setDate(d.getDate() - 1);
+    } else break;
+  }
+  return streak;
+};
 
-    function Spinner() {
-      return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: "50%",
-            border: `2px solid ${W.border}`,
-            borderTopColor: W.accent,
-            animation: "spin 0.7s linear infinite",
-          }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      );
+const computeLongestStreak = (habitId, completions) => {
+  const days = last90();
+  let best = 0, cur = 0;
+  days.forEach(d => {
+    if (completions.find(c => c.habit_id === habitId && c.date === d)) { cur++; best = Math.max(best, cur); }
+    else cur = 0;
+  });
+  return best;
+};
+
+function Spinner({ C }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"60vh" }}>
+      <div style={{ width:28, height:28, borderRadius:"50%", border:`2px solid ${C.border}`, borderTopColor:C.accent, animation:"spin 0.7s linear infinite" }} />
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active, onClick, C, mobile }) {
+  return (
+    <button onClick={onClick} style={{
+      display:"flex", flexDirection: mobile ? "column" : "row",
+      alignItems:"center", gap: mobile ? 2 : 10,
+      padding: mobile ? "6px 0" : "9px 14px",
+      borderRadius: mobile ? 0 : 9,
+      border:"none", background: active ? (mobile ? "none" : C.surface) : "none",
+      color: active ? C.accent : C.muted,
+      fontSize: mobile ? 10 : 14, fontWeight: active ? 500 : 400,
+      cursor:"pointer", flex: mobile ? 1 : "none",
+      borderBottom: mobile && active ? `2px solid ${C.accent}` : mobile ? "2px solid transparent" : "none",
+      transition:"all 0.15s",
+    }}>
+      <span style={{ fontSize: mobile ? 20 : 16 }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+function TagPill({ tag, C }) {
+  const t = TAGS.find(x => x.label === tag);
+  if (!t) return null;
+  return (
+    <span style={{
+      fontSize:11, fontWeight:500, color:t.color,
+      background:t.bg, borderRadius:20, padding:"2px 8px",
+      border:`0.5px solid ${t.color}44`, flexShrink:0,
+    }}>{t.label}</span>
+  );
+}
+
+/* ── Rich text editor ── */
+function RichEditor({ value, onChange, placeholder, C }) {
+  const ref = useRef();
+  const lastVal = useRef(value);
+
+  useEffect(() => {
+    if (ref.current && value !== lastVal.current) {
+      ref.current.innerHTML = value;
+      lastVal.current = value;
     }
+  }, [value]);
 
-    function App() {
-      const [habits,      setHabits]      = useState([]);
-      const [completions, setCompletions] = useState([]);
-      const [newName,     setNewName]     = useState("");
-      const [expanded,    setExpanded]    = useState({});
-      const [loading,     setLoading]     = useState(true);
-      const [saving,      setSaving]      = useState(false);
+  const exec = (cmd, val) => { document.execCommand(cmd, false, val); ref.current.focus(); };
 
-      const today = todayKey();
-      const days  = last30();
+  const tools = [
+    { label:"B", cmd:"bold",        style:{ fontWeight:700 } },
+    { label:"I", cmd:"italic",      style:{ fontStyle:"italic" } },
+    { label:"H", cmd:"formatBlock", val:"h3", style:{ fontWeight:600 } },
+    { label:"•", cmd:"insertUnorderedList", style:{} },
+  ];
 
-      const fetchAll = useCallback(async () => {
-        const [{ data: h }, { data: c }] = await Promise.all([
-          sb.from("habits").select("*").order("created_at"),
-          sb.from("completions").select("*"),
-        ]);
-        setHabits(h || []);
-        setCompletions(c || []);
-        setLoading(false);
-      }, []);
+  return (
+    <div style={{ border:`0.5px solid ${C.border}`, borderRadius:10, overflow:"hidden" }}>
+      <div style={{ display:"flex", gap:2, padding:"6px 8px", borderBottom:`0.5px solid ${C.border}`, background:C.surface }}>
+        {tools.map(t => (
+          <button key={t.cmd} onMouseDown={e => { e.preventDefault(); exec(t.cmd, t.val); }}
+            style={{ ...t.style, border:`0.5px solid ${C.border}`, borderRadius:6, padding:"2px 8px", fontSize:12, background:C.bg, color:C.text, cursor:"pointer" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder={placeholder}
+        onInput={e => { lastVal.current = e.target.innerHTML; onChange(e.target.innerHTML); }}
+        style={{
+          minHeight:120, padding:"10px 12px", fontSize:14, lineHeight:1.7,
+          color:C.text, background:C.bg,
+        }}
+      />
+      <style>{`[contenteditable]:empty:before { content: attr(data-placeholder); color: ${C.faint}; }`}</style>
+    </div>
+  );
+}
 
-      useEffect(() => { fetchAll(); }, [fetchAll]);
+/* ══════════════ PAGES ══════════════ */
 
-      const addHabit = async () => {
-        if (!newName.trim()) return;
-        setSaving(true);
-        const id = Date.now().toString();
-        const { data } = await sb.from("habits").insert({ id, name: newName.trim() }).select().single();
-        if (data) setHabits(h => [...h, data]);
-        setNewName("");
-        setSaving(false);
-      };
+function TodayPage({ habits, completions, toggle, C }) {
+  const today = todayKey();
+  const days  = last30();
+  const [expanded, setExpanded] = useState({});
+  const [notes, setNotes] = useState({});
 
-      const deleteHabit = async (id) => {
-        await sb.from("habits").delete().eq("id", id);
-        setHabits(h => h.filter(x => x.id !== id));
-        setCompletions(c => c.filter(x => x.habit_id !== id));
-      };
+  const setNote = async (habitId, val) => {
+    const existing = completions.find(c => c.habit_id === habitId && c.date === today);
+    if (existing) {
+      await sb.from("completions").update({ note: val }).eq("id", existing.id);
+    }
+    setNotes(n => ({ ...n, [`${habitId}_${today}`]: val }));
+  };
 
-      const toggle = async (habitId) => {
-        const existing = completions.find(c => c.habit_id === habitId && c.date === today);
-        if (existing) {
-          await sb.from("completions").delete().eq("id", existing.id);
-          setCompletions(c => c.filter(x => x.id !== existing.id));
-        } else {
-          const id = `${habitId}_${today}`;
-          const { data } = await sb.from("completions").insert({ id, habit_id: habitId, date: today, note: "" }).select().single();
-          if (data) setCompletions(c => [...c, data]);
-        }
-      };
+  const doneToday = habits.filter(h => completions.find(c => c.habit_id === h.id && c.date === today)).length;
+  const pct = habits.length ? Math.round((doneToday / habits.length) * 100) : 0;
 
-      const setNote = async (habitId, val) => {
-        const existing = completions.find(c => c.habit_id === habitId && c.date === today);
-        if (existing) {
-          await sb.from("completions").update({ note: val }).eq("id", existing.id);
-          setCompletions(c => c.map(x => x.id === existing.id ? { ...x, note: val } : x));
-        } else {
-          const id = `${habitId}_${today}`;
-          const { data } = await sb.from("completions").insert({ id, habit_id: habitId, date: today, note: val }).select().single();
-          if (data) setCompletions(c => [...c, data]);
-        }
-      };
+  const dateStr = new Date().toLocaleDateString("en-NL", { weekday:"long", month:"long", day:"numeric" });
+  const heatFills = ["#EDE5D8","#F0D4B0","#E0B070", C.accent, C.accentDark];
 
-      const doneToday = habits.filter(h => completions.find(c => c.habit_id === h.id && c.date === today)).length;
-      const pct = habits.length ? Math.round((doneToday / habits.length) * 100) : 0;
+  return (
+    <div className="fadein">
+      <div style={{ marginBottom:"1.75rem" }}>
+        <h2 style={{ fontSize:22, fontWeight:500, letterSpacing:"-0.02em", color:C.text }}>Today</h2>
+        <p style={{ fontSize:13, color:C.muted, marginTop:4 }}>{dateStr}</p>
+      </div>
 
-      const dateStr = new Date().toLocaleDateString("en-NL", {
-        weekday: "long", month: "long", day: "numeric",
-      });
+      {habits.length === 0 && <p style={{ color:C.faint, fontSize:14, padding:"2rem 0", textAlign:"center" }}>No habits yet — add some in the Habits section.</p>}
 
-      const heatFills = ["#EDE5D8","#F0D4B0","#E0B070", W.accent, W.accentDark];
+      {habits.map(h => {
+        const completion = completions.find(c => c.habit_id === h.id && c.date === today);
+        const done   = !!completion;
+        const streak = computeStreak(h.id, completions);
+        const isOpen = !!expanded[h.id];
+        const noteVal = notes[`${h.id}_${today}`] ?? completion?.note ?? "";
+        const heatData = days.map(d => completions.find(c => c.habit_id === h.id && c.date === d) ? 2 : 0);
 
-      if (loading) return (
-        <div style={{ maxWidth: 520, margin: "0 auto", padding: "2rem 1.25rem" }}>
-          <h1 style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.02em", marginBottom: 4 }}>Cones</h1>
-          <Spinner />
-        </div>
-      );
-
-      return (
-        <div style={{ maxWidth: 520, margin: "0 auto", padding: "2rem 1.25rem", minHeight: "100vh" }}>
-
-          {/* Header */}
-          <div style={{ marginBottom: "2rem" }}>
-            <h1 style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.02em" }}>Cones</h1>
-            <p style={{ fontSize: 13, color: W.muted, marginTop: 4 }}>{dateStr}</p>
-          </div>
-
-          {/* Add row */}
-          <div style={{ display: "flex", gap: 8, marginBottom: "1.75rem" }}>
-            <input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addHabit()}
-              placeholder="Add a new habit..."
-              style={{
-                flex: 1, border: `0.5px solid ${W.border}`, borderRadius: 10,
-                padding: "8px 12px", fontSize: 14, background: W.surface, color: W.text,
-              }}
-            />
-            <button
-              onClick={addHabit}
-              disabled={saving}
-              style={{
-                border: `0.5px solid ${W.accent}`, borderRadius: 10, padding: "8px 16px",
-                fontSize: 13, fontWeight: 500, background: W.accent, color: "#fff",
-                cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1,
-              }}
-            >{saving ? "..." : "Add"}</button>
-          </div>
-
-          {/* Empty state */}
-          {habits.length === 0 && (
-            <p style={{ textAlign: "center", color: W.faint, fontSize: 14, padding: "2rem 0" }}>
-              No habits yet — add one above to get started.
-            </p>
-          )}
-
-          {/* Habit cards */}
-          {habits.map(h => {
-            const completion = completions.find(c => c.habit_id === h.id && c.date === today);
-            const done     = !!completion;
-            const streak   = computeStreak(h.id, completions);
-            const isOpen   = !!expanded[h.id];
-            const noteVal  = completion?.note || "";
-            const heatData = days.map(d => completions.find(c => c.habit_id === h.id && c.date === d) ? 2 : 0);
-
-            return (
-              <div key={h.id} style={{
-                background: done ? W.doneBg : W.surface,
-                border: `0.5px solid ${done ? "#C5DEC5" : W.border}`,
-                borderRadius: 12, padding: "14px 16px", marginBottom: 10,
-                transition: "background 0.2s",
+        return (
+          <div key={h.id} style={{
+            background: done ? C.doneBg : C.surface,
+            border:`0.5px solid ${done ? C.done+"44" : C.border}`,
+            borderRadius:12, padding:"14px 16px", marginBottom:10, transition:"background 0.2s",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div onClick={() => toggle(h.id)} style={{
+                width:20, height:20, borderRadius:6, flexShrink:0, cursor:"pointer",
+                border:`1.5px solid ${done ? C.done : C.border}`,
+                background: done ? C.done : "transparent",
+                display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s",
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    onClick={() => toggle(h.id)}
-                    style={{
-                      width: 20, height: 20, borderRadius: 6, flexShrink: 0, cursor: "pointer",
-                      border: `1.5px solid ${done ? W.done : W.border}`,
-                      background: done ? W.done : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {done && (
-                      <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                        <path d="M1 4L4 7.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-
-                  <span style={{
-                    fontSize: 15, fontWeight: 500, flex: 1,
-                    color: done ? W.done : W.text,
-                    textDecoration: done ? "line-through" : "none",
-                    opacity: done ? 0.7 : 1,
-                  }}>{h.name}</span>
-
-                  {streak > 0 && (
-                    <span style={{
-                      fontSize: 12, fontWeight: 500, color: W.accentDark,
-                      background: W.streakBg, border: `0.5px solid ${W.streakBorder}`,
-                      borderRadius: 20, padding: "2px 10px", flexShrink: 0,
-                    }}>{streak} day{streak !== 1 ? "s" : ""}</span>
-                  )}
-
-                  <button
-                    onClick={() => setExpanded(e => ({ ...e, [h.id]: !e[h.id] }))}
-                    style={{ fontSize: 12, color: W.faint, background: "none", border: "none", cursor: "pointer", padding: "0 4px" }}
-                  >{isOpen ? "▲" : "▼"}</button>
-
-                  <button
-                    onClick={() => deleteHabit(h.id)}
-                    style={{ fontSize: 18, color: W.faint, background: "none", border: "none", cursor: "pointer", padding: "0 2px", lineHeight: 1 }}
-                  >&times;</button>
-                </div>
-
-                {isOpen && (
-                  <div style={{ marginTop: 10, borderTop: `0.5px solid ${W.border}`, paddingTop: 10 }}>
-                    <div style={{ fontSize: 11, color: W.faint, marginBottom: 6, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                      Last 30 days
-                    </div>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
-                      {heatData.map((lvl, i) => (
-                        <div key={i} title={days[i]} style={{
-                          width: 14, height: 14, borderRadius: 3,
-                          background: heatFills[Math.min(lvl, 4)], flexShrink: 0,
-                        }}/>
-                      ))}
-                    </div>
-                    <textarea
-                      rows={2}
-                      placeholder="Note for today..."
-                      value={noteVal}
-                      onChange={e => setNote(h.id, e.target.value)}
-                      style={{
-                        width: "100%", border: `0.5px solid ${W.border}`, borderRadius: 8,
-                        padding: "6px 10px", fontSize: 13, color: W.text, background: W.bg,
-                        lineHeight: 1.5,
-                      }}
-                    />
-                  </div>
-                )}
+                {done && <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
               </div>
-            );
-          })}
-
-          {/* Progress */}
-          {habits.length > 0 && (
-            <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: `0.5px solid ${W.border}` }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: W.faint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "1rem" }}>
-                Today's progress
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: W.muted, marginBottom: 6 }}>
-                <span>{doneToday} of {habits.length} done</span>
-                <span style={{ fontWeight: 500, color: pct === 100 ? W.done : W.accent }}>{pct}%</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 4, background: W.border, overflow: "hidden" }}>
-                <div style={{
-                  height: "100%", width: `${pct}%`,
-                  background: pct === 100 ? W.done : W.accent,
-                  borderRadius: 4, transition: "width 0.4s ease",
-                }}/>
-              </div>
-              {pct === 100 && (
-                <p style={{ fontSize: 13, color: W.done, marginTop: 8, fontWeight: 500 }}>All done for today ✓</p>
-              )}
+              <span style={{ fontSize:15, fontWeight:500, flex:1, color: done ? C.done : C.text, textDecoration: done ? "line-through" : "none", opacity: done ? 0.7 : 1 }}>{h.name}</span>
+              {h.tag && <TagPill tag={h.tag} C={C} />}
+              {streak > 0 && <span style={{ fontSize:12, fontWeight:500, color:C.accentDark, background:C.streakBg, border:`0.5px solid ${C.streakBorder}`, borderRadius:20, padding:"2px 10px", flexShrink:0 }}>{streak}d</span>}
+              <button onClick={() => setExpanded(e => ({ ...e, [h.id]: !e[h.id] }))} style={{ fontSize:11, color:C.faint, background:"none", border:"none", cursor:"pointer", padding:"0 4px" }}>{isOpen ? "▲" : "▼"}</button>
             </div>
-          )}
+            {isOpen && (
+              <div style={{ marginTop:10, borderTop:`0.5px solid ${C.border}`, paddingTop:10 }}>
+                <div style={{ fontSize:11, color:C.faint, marginBottom:6, fontWeight:500, letterSpacing:"0.05em", textTransform:"uppercase" }}>Last 30 days</div>
+                <div style={{ display:"flex", gap:3, flexWrap:"wrap", marginBottom:10 }}>
+                  {heatData.map((lvl,i) => <div key={i} title={days[i]} style={{ width:13, height:13, borderRadius:3, background:heatFills[Math.min(lvl,4)] }} />)}
+                </div>
+                <textarea rows={2} placeholder="Note for today..." value={noteVal}
+                  onChange={e => setNote(h.id, e.target.value)}
+                  style={{ width:"100%", border:`0.5px solid ${C.border}`, borderRadius:8, padding:"6px 10px", fontSize:13, color:C.text, background:C.bg, lineHeight:1.5 }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
 
+      {habits.length > 0 && (
+        <div style={{ marginTop:"2rem", paddingTop:"1.5rem", borderTop:`0.5px solid ${C.border}` }}>
+          <div style={{ fontSize:12, fontWeight:500, color:C.faint, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"0.75rem" }}>Today's progress</div>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
+            <span>{doneToday} of {habits.length} done</span>
+            <span style={{ fontWeight:500, color: pct===100 ? C.done : C.accent }}>{pct}%</span>
+          </div>
+          <div style={{ height:6, borderRadius:4, background:C.border, overflow:"hidden" }}>
+            <div style={{ height:"100%", width:`${pct}%`, background: pct===100 ? C.done : C.accent, borderRadius:4, transition:"width 0.4s ease" }} />
+          </div>
+          {pct === 100 && <p style={{ fontSize:13, color:C.done, marginTop:8, fontWeight:500 }}>All done for today ✓</p>}
         </div>
-      );
-    }
+      )}
+    </div>
+  );
+}
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
+function HabitsPage({ habits, setHabits, completions, C }) {
+  const [newName, setNewName] = useState("");
+  const [newTag,  setNewTag]  = useState("Other");
+  const [saving,  setSaving]  = useState(false);
+
+  const addHabit = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    const id = Date.now().toString();
+    const { data } = await sb.from("habits").insert({ id, name: newName.trim(), tag: newTag }).select().single();
+    if (data) setHabits(h => [...h, data]);
+    setNewName(""); setSaving(false);
+  };
+
+  const deleteHabit = async (id) => {
+    await sb.from("habits").delete().eq("id", id);
+    setHabits(h => h.filter(x => x.id !== id));
+  };
+
+  return (
+    <div className="fadein">
+      <h2 style={{ fontSize:22, fontWeight:500, letterSpacing:"-0.02em", color:C.text, marginBottom:"1.75rem" }}>Habits</h2>
+
+      <div style={{ display:"flex", gap:8, marginBottom:"1.5rem", flexWrap:"wrap" }}>
+        <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key==="Enter" && addHabit()}
+          placeholder="New habit..." style={{ flex:1, minWidth:140, border:`0.5px solid ${C.border}`, borderRadius:10, padding:"8px 12px", fontSize:14, background:C.surface, color:C.text }} />
+        <select value={newTag} onChange={e => setNewTag(e.target.value)}
+          style={{ border:`0.5px solid ${C.border}`, borderRadius:10, padding:"8px 10px", fontSize:13, background:C.surface, color:C.text, cursor:"pointer" }}>
+          {TAGS.map(t => <option key={t.label}>{t.label}</option>)}
+        </select>
+        <button onClick={addHabit} disabled={saving} style={{ border:`0.5px solid ${C.accent}`, borderRadius:10, padding:"8px 16px", fontSize:13, fontWeight:500, background:C.accent, color:"#fff", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>
+          {saving ? "..." : "Add"}
+        </button>
+      </div>
+
+      {habits.length === 0 && <p style={{ color:C.faint, fontSize:14, textAlign:"center", padding:"2rem 0" }}>No habits yet.</p>}
+
+      {TAGS.map(tag => {
+        const group = habits.filter(h => (h.tag || "Other") === tag.label);
+        if (!group.length) return null;
+        return (
+          <div key={tag.label} style={{ marginBottom:"1.5rem" }}>
+            <div style={{ fontSize:11, fontWeight:500, color:tag.color, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8 }}>{tag.label}</div>
+            {group.map(h => {
+              const streak  = computeStreak(h.id, completions);
+              const longest = computeLongestStreak(h.id, completions);
+              return (
+                <div key={h.id} style={{ display:"flex", alignItems:"center", gap:10, background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:10, padding:"12px 14px", marginBottom:6 }}>
+                  <span style={{ flex:1, fontSize:14, fontWeight:500, color:C.text }}>{h.name}</span>
+                  <span style={{ fontSize:12, color:C.muted }}>🔥 {streak}d current</span>
+                  <span style={{ fontSize:12, color:C.faint }}>best {longest}d</span>
+                  <button onClick={() => deleteHabit(h.id)} style={{ fontSize:16, color:C.faint, background:"none", border:"none", cursor:"pointer", lineHeight:1 }}>&times;</button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function GoalsPage({ C }) {
+  const [goals,    setGoals]    = useState([]);
+  const [subtasks, setSubtasks] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [newGoal,  setNewGoal]  = useState("");
+  const [newSub,   setNewSub]   = useState({});
+  const [expanded, setExpanded] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: g }, { data: s }] = await Promise.all([
+        sb.from("goals").select("*").order("created_at"),
+        sb.from("subtasks").select("*"),
+      ]);
+      setGoals(g || []); setSubtasks(s || []); setLoading(false);
+    })();
+  }, []);
+
+  const addGoal = async () => {
+    if (!newGoal.trim()) return;
+    const id = Date.now().toString();
+    const { data } = await sb.from("goals").insert({ id, title: newGoal.trim() }).select().single();
+    if (data) { setGoals(g => [...g, data]); setExpanded(e => ({ ...e, [id]: true })); }
+    setNewGoal("");
+  };
+
+  const deleteGoal = async (id) => {
+    await sb.from("goals").delete().eq("id", id);
+    setGoals(g => g.filter(x => x.id !== id));
+    setSubtasks(s => s.filter(x => x.goal_id !== id));
+  };
+
+  const addSub = async (goalId) => {
+    const title = (newSub[goalId] || "").trim();
+    if (!title) return;
+    const id = `${goalId}_${Date.now()}`;
+    const { data } = await sb.from("subtasks").insert({ id, goal_id: goalId, title, done: false }).select().single();
+    if (data) setSubtasks(s => [...s, data]);
+    setNewSub(n => ({ ...n, [goalId]: "" }));
+  };
+
+  const toggleSub = async (sub) => {
+    await sb.from("subtasks").update({ done: !sub.done }).eq("id", sub.id);
+    setSubtasks(s => s.map(x => x.id === sub.id ? { ...x, done: !x.done } : x));
+  };
+
+  const deleteSub = async (id) => {
+    await sb.from("subtasks").delete().eq("id", id);
+    setSubtasks(s => s.filter(x => x.id !== id));
+  };
+
+  if (loading) return <Spinner C={C} />;
+
+  return (
+    <div className="fadein">
+      <h2 style={{ fontSize:22, fontWeight:500, letterSpacing:"-0.02em", color:C.text, marginBottom:"1.75rem" }}>Goals</h2>
+
+      <div style={{ display:"flex", gap:8, marginBottom:"1.5rem" }}>
+        <input value={newGoal} onChange={e => setNewGoal(e.target.value)} onKeyDown={e => e.key==="Enter" && addGoal()}
+          placeholder="New goal..." style={{ flex:1, border:`0.5px solid ${C.border}`, borderRadius:10, padding:"8px 12px", fontSize:14, background:C.surface, color:C.text }} />
+        <button onClick={addGoal} style={{ border:`0.5px solid ${C.accent}`, borderRadius:10, padding:"8px 16px", fontSize:13, fontWeight:500, background:C.accent, color:"#fff", cursor:"pointer" }}>Add</button>
+      </div>
+
+      {goals.length === 0 && <p style={{ color:C.faint, fontSize:14, textAlign:"center", padding:"2rem 0" }}>No goals yet.</p>}
+
+      {goals.map(g => {
+        const subs  = subtasks.filter(s => s.goal_id === g.id);
+        const done  = subs.filter(s => s.done).length;
+        const pct   = subs.length ? Math.round((done / subs.length) * 100) : 0;
+        const isOpen = !!expanded[g.id];
+
+        return (
+          <div key={g.id} style={{ background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:12, padding:"14px 16px", marginBottom:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom: isOpen ? 10 : 0 }}>
+              <span style={{ flex:1, fontSize:15, fontWeight:500, color:C.text }}>{g.title}</span>
+              <span style={{ fontSize:12, color:C.muted }}>{pct}%</span>
+              <button onClick={() => setExpanded(e => ({ ...e, [g.id]: !e[g.id] }))} style={{ fontSize:11, color:C.faint, background:"none", border:"none", cursor:"pointer" }}>{isOpen ? "▲" : "▼"}</button>
+              <button onClick={() => deleteGoal(g.id)} style={{ fontSize:16, color:C.faint, background:"none", border:"none", cursor:"pointer", lineHeight:1 }}>&times;</button>
+            </div>
+
+            {subs.length > 0 && (
+              <div style={{ height:4, borderRadius:4, background:C.border, overflow:"hidden", marginBottom: isOpen ? 10 : 0 }}>
+                <div style={{ height:"100%", width:`${pct}%`, background: pct===100 ? C.done : C.accent, borderRadius:4, transition:"width 0.3s ease" }} />
+              </div>
+            )}
+
+            {isOpen && (
+              <div style={{ borderTop:`0.5px solid ${C.border}`, paddingTop:10 }}>
+                {subs.map(s => (
+                  <div key={s.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0" }}>
+                    <div onClick={() => toggleSub(s)} style={{
+                      width:17, height:17, borderRadius:5, flexShrink:0, cursor:"pointer",
+                      border:`1.5px solid ${s.done ? C.done : C.border}`,
+                      background: s.done ? C.done : "transparent",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                    }}>
+                      {s.done && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{ flex:1, fontSize:13, color: s.done ? C.muted : C.text, textDecoration: s.done ? "line-through" : "none", opacity: s.done ? 0.6 : 1 }}>{s.title}</span>
+                    <button onClick={() => deleteSub(s.id)} style={{ fontSize:14, color:C.faint, background:"none", border:"none", cursor:"pointer", lineHeight:1 }}>&times;</button>
+                  </div>
+                ))}
+                <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                  <input value={newSub[g.id] || ""} onChange={e => setNewSub(n => ({ ...n, [g.id]: e.target.value }))}
+                    onKeyDown={e => e.key==="Enter" && addSub(g.id)}
+                    placeholder="Add sub-task..." style={{ flex:1, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"6px 10px", fontSize:13, background:C.bg, color:C.text }} />
+                  <button onClick={() => addSub(g.id)} style={{ border:`0.5px solid ${C.accent}`, borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:500, background:"none", color:C.accent, cursor:"pointer" }}>Add</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NotesPage({ C }) {
+  const [notes,   setNotes]   = useState([]);
+  const [active,  setActive]  = useState(null);
+  const [loading, setLoading] = useState(true);
+  const saveTimer = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await sb.from("notes").select("*").order("updated_at", { ascending: false });
+      setNotes(data || []);
+      if (data && data.length) setActive(data[0].id);
+      setLoading(false);
+    })();
+  }, []);
+
+  const addNote = async () => {
+    const id = Date.now().toString();
+    const { data } = await sb.from("notes").insert({ id, title: "Untitled", content: "" }).select().single();
+    if (data) { setNotes(n => [data, ...n]); setActive(data.id); }
+  };
+
+  const deleteNote = async (id) => {
+    await sb.from("notes").delete().eq("id", id);
+    const remaining = notes.filter(n => n.id !== id);
+    setNotes(remaining);
+    setActive(remaining.length ? remaining[0].id : null);
+  };
+
+  const updateNote = (id, field, val) => {
+    setNotes(n => n.map(x => x.id === id ? { ...x, [field]: val } : x));
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      await sb.from("notes").update({ [field]: val, updated_at: new Date().toISOString() }).eq("id", id);
+    }, 600);
+  };
+
+  const activeNote = notes.find(n => n.id === active);
+
+  if (loading) return <Spinner C={C} />;
+
+  return (
+    <div className="fadein" style={{ display:"flex", gap:16, height:"100%" }}>
+      {/* Note list */}
+      <div style={{ width:180, flexShrink:0 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <span style={{ fontSize:13, fontWeight:500, color:C.muted }}>Notes</span>
+          <button onClick={addNote} style={{ fontSize:18, color:C.accent, background:"none", border:"none", cursor:"pointer", lineHeight:1 }}>+</button>
+        </div>
+        {notes.length === 0 && <p style={{ fontSize:13, color:C.faint }}>No notes yet.</p>}
+        {notes.map(n => (
+          <div key={n.id} onClick={() => setActive(n.id)} style={{
+            padding:"8px 10px", borderRadius:8, marginBottom:4, cursor:"pointer",
+            background: n.id === active ? C.accentDark+"22" : "transparent",
+            border:`0.5px solid ${n.id === active ? C.accent+"44" : "transparent"}`,
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+          }}>
+            <span style={{ fontSize:13, color: n.id === active ? C.accent : C.text, fontWeight: n.id === active ? 500 : 400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{n.title || "Untitled"}</span>
+            <button onClick={e => { e.stopPropagation(); deleteNote(n.id); }} style={{ fontSize:14, color:C.faint, background:"none", border:"none", cursor:"pointer", marginLeft:4, lineHeight:1, flexShrink:0 }}>&times;</button>
+          </div>
+        ))}
+      </div>
+
+      {/* Editor */}
+      <div style={{ flex:1, minWidth:0 }}>
+        {activeNote ? (
+          <>
+            <input value={activeNote.title} onChange={e => updateNote(activeNote.id, "title", e.target.value)}
+              style={{ width:"100%", fontSize:20, fontWeight:500, letterSpacing:"-0.02em", border:"none", background:"transparent", color:C.text, marginBottom:14, padding:0 }}
+              placeholder="Title" />
+            <RichEditor value={activeNote.content} onChange={v => updateNote(activeNote.id, "content", v)} placeholder="Start writing..." C={C} />
+          </>
+        ) : (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:200 }}>
+            <button onClick={addNote} style={{ border:`0.5px solid ${C.accent}`, borderRadius:10, padding:"10px 20px", fontSize:14, color:C.accent, background:"none", cursor:"pointer" }}>New note</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OverviewPage({ habits, completions, C }) {
+  const days = last90();
+  const today = todayKey();
+
+  const globalStreak = useMemo(() => {
+    if (!habits.length) return 0;
+    let streak = 0;
+    const d = new Date();
+    while (true) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const allDone = habits.every(h => completions.find(c => c.habit_id === h.id && c.date === dateStr));
+      if (allDone && habits.length) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return streak;
+  }, [habits, completions]);
+
+  const totalDone = completions.filter(c => days.includes(c.date)).length;
+
+  const heatFills = ["#EDE5D8","#E8C890","#D4A050", C.accent, C.accentDark];
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+
+  return (
+    <div className="fadein">
+      <h2 style={{ fontSize:22, fontWeight:500, letterSpacing:"-0.02em", color:C.text, marginBottom:"1.75rem" }}>Overview</h2>
+
+      {/* Stats */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:"2rem" }}>
+        {[
+          { label:"Global streak", value:`${globalStreak}d` },
+          { label:"Total habits",  value: habits.length },
+          { label:"Done (90d)",    value: totalDone },
+        ].map(s => (
+          <div key={s.label} style={{ background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:10, padding:"12px 14px" }}>
+            <div style={{ fontSize:11, color:C.faint, marginBottom:4, textTransform:"uppercase", letterSpacing:"0.05em" }}>{s.label}</div>
+            <div style={{ fontSize:22, fontWeight:500, color:C.accent }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-habit streaks */}
+      <div style={{ marginBottom:"2rem" }}>
+        <div style={{ fontSize:12, fontWeight:500, color:C.faint, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:10 }}>Streaks</div>
+        {habits.map(h => {
+          const streak  = computeStreak(h.id, completions);
+          const longest = computeLongestStreak(h.id, completions);
+          const pct     = longest ? Math.round((streak / longest) * 100) : 0;
+          return (
+            <div key={h.id} style={{ marginBottom:10 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:4 }}>
+                <span style={{ color:C.text, fontWeight:500 }}>{h.name}</span>
+                <span style={{ color:C.muted }}>{streak}d <span style={{ color:C.faint }}>/ best {longest}d</span></span>
+              </div>
+              <div style={{ height:5, borderRadius:4, background:C.border, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${pct}%`, background: streak===longest && longest>0 ? C.done : C.accent, borderRadius:4, transition:"width 0.4s" }} />
+              </div>
+            </div>
+          );
+        })}
+        {habits.length === 0 && <p style={{ color:C.faint, fontSize:14 }}>No habits tracked yet.</p>}
+      </div>
+
+      {/* Heatmap */}
+      <div>
+        <div style={{ fontSize:12, fontWeight:500, color:C.faint, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:10 }}>90-day heatmap</div>
+        <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
+          {days.map(d => {
+            const count = completions.filter(c => c.date === d).length;
+            const level = count === 0 ? 0 : count < 2 ? 1 : count < habits.length * 0.5 ? 2 : count < habits.length ? 3 : 4;
+            return <div key={d} title={d} style={{ width:13, height:13, borderRadius:3, background:heatFills[level], flexShrink:0 }} />;
+          })}
+        </div>
+        <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:8 }}>
+          <span style={{ fontSize:11, color:C.faint }}>Less</span>
+          {heatFills.map((f,i) => <div key={i} style={{ width:11, height:11, borderRadius:2, background:f }} />)}
+          <span style={{ fontSize:11, color:C.faint }}>More</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════ ROOT ══════════════ */
+function App() {
+  const [dark,        setDark]        = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const [page,        setPage]        = useState("today");
+  const [habits,      setHabits]      = useState([]);
+  const [completions, setCompletions] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [reminder,    setReminder]    = useState(null);
+
+  const C = dark ? DARK : LIGHT;
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: h }, { data: c }] = await Promise.all([
+        sb.from("habits").select("*").order("created_at"),
+        sb.from("completions").select("*"),
+      ]);
+      setHabits(h || []); setCompletions(c || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const toggle = async (habitId) => {
+    const today = todayKey();
+    const existing = completions.find(c => c.habit_id === habitId && c.date === today);
+    if (existing) {
+      await sb.from("completions").delete().eq("id", existing.id);
+      setCompletions(c => c.filter(x => x.id !== existing.id));
+    } else {
+      const id = `${habitId}_${today}`;
+      const { data } = await sb.from("completions").insert({ id, habit_id: habitId, date: today, note: "" }).select().single();
+      if (data) setCompletions(c => [...c, data]);
+    }
+  };
+
+  const requestReminder = async () => {
+    if (!("Notification" in window)) return alert("Notifications not supported in this browser.");
+    const perm = await Notification.requestPermission();
+    if (perm === "granted") {
+      const time = prompt("Set daily reminder time (e.g. 20:00):", "20:00");
+      if (time) {
+        setReminder(time);
+        new Notification("Cones reminder set ✓", { body: `You'll be reminded daily at ${time}.` });
+      }
+    }
+  };
+
+  const nav = [
+    { id:"today",    icon:"☀️", label:"Today"    },
+    { id:"habits",   icon:"✓",  label:"Habits"   },
+    { id:"goals",    icon:"◎",  label:"Goals"    },
+    { id:"notes",    icon:"✎",  label:"Notes"    },
+    { id:"overview", icon:"◈",  label:"Overview" },
+  ];
+
+  if (loading) return (
+    <div style={{ background:C.bg, minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div>
+        <p style={{ fontSize:22, fontWeight:500, color:C.text, textAlign:"center", marginBottom:20 }}>Cones</p>
+        <Spinner C={C} />
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ background:C.bg, minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+
+      {/* Desktop layout */}
+      <div style={{ display:"flex", flex:1, maxWidth:900, margin:"0 auto", width:"100%", padding:"1.5rem 1rem" }}>
+
+        {/* Sidebar */}
+        <div style={{ width:180, flexShrink:0, marginRight:"2rem" }} className="desktop-sidebar">
+          <div style={{ marginBottom:"2rem" }}>
+            <h1 style={{ fontSize:20, fontWeight:600, color:C.accent, letterSpacing:"-0.02em" }}>Cones</h1>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+            {nav.map(n => (
+              <NavItem key={n.id} icon={n.icon} label={n.label} active={page===n.id} onClick={() => setPage(n.id)} C={C} mobile={false} />
+            ))}
+          </div>
+          <div style={{ marginTop:"auto", paddingTop:"2rem", display:"flex", flexDirection:"column", gap:8 }}>
+            <button onClick={requestReminder} style={{ fontSize:12, color:C.muted, background:"none", border:`0.5px solid ${C.border}`, borderRadius:8, padding:"6px 10px", cursor:"pointer", textAlign:"left" }}>
+              {reminder ? `⏰ ${reminder}` : "Set reminder"}
+            </button>
+            <button onClick={() => setDark(d => !d)} style={{ fontSize:12, color:C.muted, background:"none", border:`0.5px solid ${C.border}`, borderRadius:8, padding:"6px 10px", cursor:"pointer", textAlign:"left" }}>
+              {dark ? "☀ Light mode" : "☾ Dark mode"}
+            </button>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div style={{ flex:1, minWidth:0, paddingBottom:"5rem" }}>
+          {page === "today"    && <TodayPage    habits={habits} completions={completions} toggle={toggle} C={C} />}
+          {page === "habits"   && <HabitsPage   habits={habits} setHabits={setHabits} completions={completions} C={C} />}
+          {page === "goals"    && <GoalsPage    C={C} />}
+          {page === "notes"    && <NotesPage    C={C} />}
+          {page === "overview" && <OverviewPage habits={habits} completions={completions} C={C} />}
+        </div>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <div style={{
+        position:"fixed", bottom:0, left:0, right:0,
+        background:C.nav, borderTop:`0.5px solid ${C.navBorder}`,
+        display:"flex", zIndex:100,
+        paddingBottom:"env(safe-area-inset-bottom)",
+      }}>
+        {nav.map(n => (
+          <NavItem key={n.id} icon={n.icon} label={n.label} active={page===n.id} onClick={() => setPage(n.id)} C={C} mobile={true} />
+        ))}
+      </div>
+
+      <style>{`
+        @media (min-width: 640px) {
+          .desktop-sidebar { display: flex !important; flex-direction: column; }
+        }
+        @media (max-width: 639px) {
+          .desktop-sidebar { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
 </body>
 </html>
