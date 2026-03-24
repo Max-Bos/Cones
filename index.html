@@ -366,7 +366,7 @@ function SettingsPage({user,C,dark,setDark,reminder,setReminder,onSignOut}) {
 }
 
 /* ── TODAY ── */
-function TodayPage({habits,completions,setCompletions,C}) {
+function TodayPage({habits,completions,setCompletions,userId,C}) {
   const today=todayKey(); const days=last30();
   const [expanded,setExpanded]=useState({});
   const [localNotes,setLocalNotes]=useState({});
@@ -377,9 +377,8 @@ function TodayPage({habits,completions,setCompletions,C}) {
       await sb.from("completions").delete().eq("id",ex.id);
       setCompletions(c=>c.filter(x=>x.id!==ex.id));
     } else {
-      const {data:{user}}=await sb.auth.getUser();
       const id=`${habitId}_${today}`;
-      const {data}=await sb.from("completions").insert({id,habit_id:habitId,date:today,note:"",user_id:user.id}).select().single();
+      const {data}=await sb.from("completions").insert({id,habit_id:habitId,date:today,note:"",user_id:userId}).select().single();
       if(data) setCompletions(c=>[...c,data]);
     }
   };
@@ -829,7 +828,7 @@ function App() {
           </div>
         </div>
         <div style={{flex:1,minWidth:0,paddingBottom:"5rem"}}>
-          {page==="today"    &&<TodayPage    habits={habits} completions={completions} setCompletions={setCompletions} C={C}/>}
+          {page==="today"    &&<TodayPage    habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/>}
           {page==="habits"   &&<HabitsPage   habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/>}
           {page==="goals"    &&<GoalsPage    userId={user.id} C={C}/>}
           {page==="notes"    &&<NotesPage    userId={user.id} C={C}/>}
