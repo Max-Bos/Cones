@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    // Preserve the full URL including hash/query so Supabase auth tokens survive the redirect
+    const url = window.location.href;
+    const base = window.location.origin + "/cones/";
+    const rest = url.replace(window.location.origin, "");
+    sessionStorage.setItem("cones_redirect", rest);
+    window.location.replace(base);
+  </script>
+</head>
+<body></body>
+</html>
