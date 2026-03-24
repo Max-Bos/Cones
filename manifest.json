@@ -1,21 +1,14 @@
+
 {
   "name": "Cones",
   "short_name": "Cones",
   "description": "Daily habits & goals tracker",
-  "start_url": "/cones/",
+  "start_url": "/Cones/",
   "display": "standalone",
   "background_color": "#FDFAF6",
   "theme_color": "#C4884A",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "/Cones/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/Cones/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
