@@ -30,6 +30,7 @@ const LIGHT = {
   done:"#5A8A5A", doneBg:"#EDF5ED",
   streakBg:"#FEF3E2", streakBorder:"#EAC98A",
   nav:"#F2EBE0", navBorder:"#E0D4C0", danger:"#C45A5A",
+  sidebar:"#F2EBE0",
 };
 const DARK = {
   bg:"#1A1410", surface:"#251E17", border:"#3A2E22",
@@ -38,6 +39,7 @@ const DARK = {
   done:"#7AAA7A", doneBg:"#1E2E1E",
   streakBg:"#2E2010", streakBorder:"#6A4A20",
   nav:"#201810", navBorder:"#3A2E22", danger:"#D47070",
+  sidebar:"#201810",
 };
 
 const todayKey = () => new Date().toISOString().slice(0,10);

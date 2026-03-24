@@ -3,17 +3,39 @@ function Spinner({C}) {
 }
 
 function NavItem({icon,label,active,onClick,C,mobile}) {
+  const [hover,setHover]=useState(false);
+  if(mobile) {
+    return (
+      <button onClick={onClick} style={{
+        display:"flex",flexDirection:"column",alignItems:"center",gap:2,
+        padding:"6px 0",borderRadius:0,border:"none",
+        background:"none",
+        color:active?C.accent:C.muted,fontSize:10,fontWeight:active?500:400,
+        cursor:"pointer",flex:1,
+        borderBottom:active?`2px solid ${C.accent}`:"2px solid transparent",
+        transition:"all 0.15s",
+      }}>
+        <span style={{fontSize:20}}>{icon}</span>{label}
+      </button>
+    );
+  }
   return (
-    <button onClick={onClick} style={{
-      display:"flex",flexDirection:mobile?"column":"row",alignItems:"center",gap:mobile?2:10,
-      padding:mobile?"6px 0":"9px 14px",borderRadius:mobile?0:9,border:"none",
-      background:active?(mobile?"none":C.surface):"none",
-      color:active?C.accent:C.muted,fontSize:mobile?10:14,fontWeight:active?500:400,
-      cursor:"pointer",flex:mobile?1:"none",
-      borderBottom:mobile&&active?`2px solid ${C.accent}`:mobile?"2px solid transparent":"none",
-      transition:"all 0.15s",
-    }}>
-      <span style={{fontSize:mobile?20:16}}>{icon}</span>{label}
+    <button onClick={onClick}
+      onMouseEnter={()=>setHover(true)}
+      onMouseLeave={()=>setHover(false)}
+      style={{
+        display:"flex",flexDirection:"row",alignItems:"center",gap:10,
+        padding:"10px 16px",
+        paddingLeft:active?"14px":"16px",
+        borderRadius:9,border:"none",
+        borderLeft:active?`2px solid ${C.accent}`:"2px solid transparent",
+        background:(active||hover)?C.surface:"none",
+        color:active?C.accent:hover?C.text:C.muted,
+        fontSize:14,fontWeight:active?500:400,
+        cursor:"pointer",width:"100%",textAlign:"left",
+        transition:"background 0.15s",
+      }}>
+      <span style={{fontSize:16}}>{icon}</span>{label}
     </button>
   );
 }
