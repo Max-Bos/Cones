@@ -81,6 +81,22 @@ function getTagTheme(tag, C) {
   return (tagConfig ? C.tags?.[tagConfig.key] : null) || C.tags?.other || {color:C.accent,bg:C.hoverBg};
 }
 
+const LIFE_YEARS = 90;
+const WEEKS_PER_YEAR = 52;
+const TOTAL_WEEKS = LIFE_YEARS * WEEKS_PER_YEAR;
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+function getWeekIndex(birthDate) {
+  if(!birthDate) return 0;
+  const birth = new Date(birthDate);
+  if(Number.isNaN(birth.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - birth.getTime()) / MS_PER_WEEK));
+}
+
+function getWeekLabel(rowIndex) {
+  return rowIndex;
+}
+
 const todayKey = () => new Date().toISOString().slice(0,10);
 const last90 = () => { const d=[]; for(let i=89;i>=0;i--){ const x=new Date(); x.setDate(x.getDate()-i); d.push(x.toISOString().slice(0,10)); } return d; };
 const last30 = () => last90().slice(-30);
