@@ -543,6 +543,9 @@ function NotesPage({userId,C}) {
 /* ── OVERVIEW ── */
 function OverviewPage({habits,completions,userId,C}) {
   const days=last90();
+  const YEAR_LABEL_INTERVAL=10;
+  const lifeWeeksGridWidth=(WEEKS_PER_YEAR*LIFE_WEEK_CELL_PX)+((WEEKS_PER_YEAR-1)*LIFE_WEEK_GAP_PX);
+  const lifeWeeksGridHeight=(LIFE_YEARS*LIFE_WEEK_CELL_PX)+((LIFE_YEARS-1)*LIFE_WEEK_GAP_PX);
   const [profileLoading,setProfileLoading]=useState(true);
   const [birthDate,setBirthDate]=useState("");
   const [birthDateInput,setBirthDateInput]=useState("");
@@ -569,9 +572,12 @@ function OverviewPage({habits,completions,userId,C}) {
 
   const saveBirthDate=async()=>{
     if(!birthDateInput){setBirthDateError("Please choose a date.");return;}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(birthDateInput)){setBirthDateError("Please enter a valid date.");return;}
     const [year,month,day]=birthDateInput.split("-").map(Number);
-    const picked=new Date(Date.UTC(year,(month||1)-1,day||1));
-    if(Number.isNaN(picked.getTime())||picked>new Date()){setBirthDateError("Please enter a valid past date.");return;}
+    const parsedBirthDate=new Date(Date.UTC(year,month-1,day));
+    const now=new Date();
+    const todayUtcTimestamp=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate());
+    if(Number.isNaN(parsedBirthDate.getTime())||parsedBirthDate.getTime()>todayUtcTimestamp){setBirthDateError("Please enter a valid past date.");return;}
     setBirthDateError("");
     setSavingBirthDate(true);
     const {error}=await sb.from("profiles").upsert({id:userId,birth_date:birthDateInput});
@@ -649,7 +655,7 @@ function OverviewPage({habits,completions,userId,C}) {
         <p style={{fontSize:12,color:C.muted,marginBottom:12}}>A full-life view: 90 years × 52 weeks.</p>
 
         {profileLoading ? (
-          <div className="life-weeks-skeleton" style={{height:(LIFE_YEARS*10)-2,width:"100%",maxWidth:(WEEKS_PER_YEAR*10)-2,borderRadius:12,border:`1px solid ${C.border}`,background:C.surface}}/>
+          <div className="life-weeks-skeleton" style={{height:lifeWeeksGridHeight,width:"100%",maxWidth:lifeWeeksGridWidth,borderRadius:12,border:`1px solid ${C.border}`,background:C.surface}}/>
         ) : editingBirthDate ? (
           <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",marginBottom:10,maxWidth:420}}>
             <p style={{fontSize:13,color:C.text,marginBottom:10}}>Enter your date of birth to see your weeks of life</p>
@@ -673,10 +679,10 @@ function OverviewPage({habits,completions,userId,C}) {
               ))}
             </div>
             <div className="life-weeks-scroll">
-              <div style={{display:"flex",flexDirection:"column",gap:2,minWidth:WEEKS_PER_YEAR*10-2}}>
+              <div style={{display:"flex",flexDirection:"column",gap:2,minWidth:lifeWeeksGridWidth}}>
                 {Array.from({length:LIFE_YEARS},(_,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div className="life-week-year-label" style={{width:18,fontSize:10,color:C.faint,textAlign:"right"}}>{i%10===0?getYearLabel(i):""}</div>
+                    <div className="life-week-year-label" style={{width:18,fontSize:10,color:C.faint,textAlign:"right"}}>{i%YEAR_LABEL_INTERVAL===0?getYearLabel(i):""}</div>
                     <div className="life-weeks-grid-row">
                       {Array.from({length:WEEKS_PER_YEAR},(_,j)=>{
                         const idx=i*WEEKS_PER_YEAR+j;
