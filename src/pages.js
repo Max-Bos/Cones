@@ -359,6 +359,7 @@ function GoalsPage({userId,habits,completions,C}) {
   const [openSubNote,setOpenSubNote]=useState({});
   const [openColorId,setOpenColorId]=useState(null);
   const [dragGoalId,setDragGoalId]=useState(null);
+  const [boardDraggingId,setBoardDraggingId]=useState(null);
   const [isMobile,setIsMobile]=useState(()=>window.matchMedia(MOBILE_QUERY).matches);
   const [selectedGoalId,setSelectedGoalId]=useState(null);
   const [zoomLevel,setZoomLevel]=useState("month");
@@ -444,7 +445,7 @@ function GoalsPage({userId,habits,completions,C}) {
     const linkedGoal=linkedGoals.find(g=>g.linked_habit_id===nextMessage.habit_id);
     if(linkedGoal){
       const linkedHabit=habitsById[linkedGoal.linked_habit_id];
-      setToast(`${linkedHabit?.name||"Habit"} completed → Goal: ${linkedGoal.title} ↑`);
+      setToast(`${linkedHabit?.name||"Unknown habit"} completed → Goal: ${linkedGoal.title} ↑`);
     }
   },[todayCompletions,activeGoals,habitsById]);
 
@@ -594,9 +595,9 @@ function GoalsPage({userId,habits,completions,C}) {
       <div key={`goal_${g.id}`}>
         <button aria-label={roadmapExpanded[g.id]!==false?`Collapse ${g.title}`:`Expand ${g.title}`} onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted}}>{roadmapExpanded[g.id]!==false?"▼":"▶"}</button>
         <div style={{position:"absolute",left:-164,top:top+10,width:160,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
-        <div title={`${g.title} • Due ${g.due_date||"none"} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap"}}>
+        <button aria-label={`Goal ${g.title}, ${status.label}`} onClick={()=>setSelectedGoalId(g.id)} title={`${g.title} • Due ${g.due_date||"none"} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap",border:"none",cursor:"pointer"}}>
           {g.title}
-        </div>
+        </button>
       </div>
     );
     acc.top+=44;
@@ -606,7 +607,7 @@ function GoalsPage({userId,habits,completions,C}) {
         const subWidth=Math.max(18,subEnd-start);
         acc.nodes.push(
           <div key={`sub_${s.id}`}>
-            <div style={{position:"absolute",left:-140,top:acc.top+2,width:130,fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>└─ {s.title}</div>
+            <div aria-label={`Subtask of ${g.title}: ${s.title}`} style={{position:"absolute",left:-140,top:acc.top+2,width:130,fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>└─ {s.title}</div>
             <div title={`${s.title} • Due ${s.due_date||"none"} • ${s.done?"Done":"Pending"} • Assignee note: ${s.note||"none"}`} style={{position:"absolute",left:start+24,top:acc.top,width:subWidth,height:20,borderRadius:999,border:s.due_date?"none":`1px dotted ${(g.color||C.accent)}AA`,background:s.done?`repeating-linear-gradient(135deg, ${(g.color||C.accent)}, ${(g.color||C.accent)} 8px, ${(g.color||C.accent)}CC 8px, ${(g.color||C.accent)}CC 16px)`:`${(g.color||C.accent)}88`,display:"flex",alignItems:"center",padding:"0 8px",fontSize:11,color:"#fff"}}>
               {s.done?"✓":""}
             </div>
@@ -856,8 +857,9 @@ function GoalsPage({userId,habits,completions,C}) {
                         key={g.id}
                         draggable={!isMobile}
                         tabIndex={!isMobile?0:-1}
-                        onDragStart={()=>setDragGoalId(g.id)}
-                        onClick={()=>setSelectedGoalId(g.id)}
+                        onDragStart={()=>{setDragGoalId(g.id);setBoardDraggingId(g.id);}}
+                        onDragEnd={()=>setTimeout(()=>setBoardDraggingId(null),0)}
+                        onClick={()=>{if(boardDraggingId===g.id) return; setSelectedGoalId(g.id);}}
                         onKeyDown={e=>{
                           if(isMobile) return;
                           if(e.key==="ArrowRight"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",1)}); }
@@ -872,7 +874,7 @@ function GoalsPage({userId,habits,completions,C}) {
                         <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:8}}>📅 {g.due_date?formatDueDate(g.due_date):"No due date"}</div>
                         <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:7}}><div style={{height:"100%",width:`${pct}%`,background:g.color||C.accent}}/></div>
                         <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{done}/{subItems.length||0}</div>
-                        {subItems.slice(0,3).map(s=><div key={s.id} style={{fontSize:11,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",marginBottom:2}}>{s.done?"☑":"☐"} {s.title}</div>)}
+                        {subItems.slice(0,3).map(s=><div key={s.id} aria-label={`${s.title} ${s.done?"done":"not done"}`} style={{fontSize:11,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",marginBottom:2}}>{s.done?"☑":"☐"} {s.title}</div>)}
                         <select value={g.status||"not_started"} onChange={e=>updateGoal(g.id,{status:e.target.value})} onClick={e=>e.stopPropagation()} style={{marginTop:8,width:"100%",height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 8px",fontSize:12,background:C.inputBg,color:C.text}}>
                           {STATUSES.map(opt=><option key={opt.id} value={opt.id}>{opt.label}</option>)}
                         </select>
