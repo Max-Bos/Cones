@@ -12,6 +12,7 @@ function Spinner({C}) {
 
 function NavItem({icon,label,active,onClick,C,mobile}) {
   const [hover,setHover]=useState(false);
+  const Icon=icon;
   if(mobile) {
     return (
       <button onClick={onClick} style={{
@@ -24,7 +25,7 @@ function NavItem({icon,label,active,onClick,C,mobile}) {
         position:"relative",
       }}>
         {active&&<span style={{position:"absolute",top:2,width:6,height:6,borderRadius:"50%",background:C.accent}}/>}
-        <span style={{fontSize:20}}>{icon}</span>{label}
+        <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{Icon&&<Icon size={18} strokeWidth={2}/>}</span>{label}
       </button>
     );
   }
@@ -44,7 +45,7 @@ function NavItem({icon,label,active,onClick,C,mobile}) {
         cursor:"pointer",width:"100%",textAlign:"left",
         transition:"all 0.15s ease",
       }}>
-      <span style={{fontSize:16,color:active?C.accent:C.muted}}>{active?"●":"○"}</span>{label}
+      <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",color:active?C.accent:C.muted}}>{Icon&&<Icon size={18} strokeWidth={2}/>}</span>{label}
     </button>
   );
 }

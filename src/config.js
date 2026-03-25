@@ -1,4 +1,14 @@
 const { useState, useEffect, useRef, useMemo } = React;
+const {
+  Sun, CheckSquare, Target, FileText, BarChart2, Settings,
+  Flame, Link2, Pin, PinOff, Archive, ArchiveRestore,
+  Trash2, Pencil, ChevronDown, ChevronUp, ChevronRight,
+  ArrowUpRight, Plus, X, Check, Calendar, Clock, User,
+  AlertCircle, Lock, Flag, Milestone, GitBranch, Copy,
+  MessageSquare, MoreHorizontal, Triangle, Star, Zap,
+  TrendingUp, Map, LayoutGrid, List, RefreshCw, Moon, SunMedium,
+  LogOut, Shield, Bell, Eye, EyeOff, GripVertical, Square,
+} = LucideReact;
 
 const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
