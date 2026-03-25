@@ -338,10 +338,19 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const MS_PER_DAY=1000*60*60*24;
   const MOBILE_QUERY="(max-width: 639px)";
+  const MIN_SUBTASK_LABEL_WIDTH=80;
+  const DEFAULT_VIEWPORT_WIDTH=720;
+  const MIN_CELL_WIDTH=3;
+  const TODAY_SCROLL_OFFSET_RATIO=0.25;
+  const MIN_BAR_WIDTH_FOR_INDICATORS=120;
+  const MIN_MONTH_LABEL_SPACING=60;
+  const MIN_TODAY_LABEL_SPACE=52;
+  const getPriorityInitial=(priority)=>priority?.id==="critical"?"!":String(priority?.label||"").charAt(0).toUpperCase()||"?";
   const ZOOM_LEVELS={
-    week:{days:28,cellWidth:40},
-    month:{days:90,cellWidth:14},
-    quarter:{days:180,cellWidth:7},
+    week:{days:21,label:"3w",showDetailHint:false},
+    month:{days:90,label:"3m",showDetailHint:false},
+    quarter:{days:180,label:"6m",showDetailHint:true},
+    year:{days:365,label:"1y",showDetailHint:true},
   };
   const [goals,setGoals]=useState([]);
   const [subs,setSubs]=useState([]);
@@ -365,6 +374,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const [isMobile,setIsMobile]=useState(()=>window.matchMedia(MOBILE_QUERY).matches);
   const [selectedGoalId,setSelectedGoalId]=useState(null);
   const [zoomLevel,setZoomLevel]=useState("month");
+  const [viewportWidth,setViewportWidth]=useState(0);
   const [toast,setToast]=useState("");
   const [promoteMsg,setPromoteMsg]=useState("");
   const [newMilestone,setNewMilestone]=useState({});
@@ -372,6 +382,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const [milestoneEdit,setMilestoneEdit]=useState({title:"",date:""});
   const [newGoalSubtasks,setNewGoalSubtasks]=useState([]);
   const panelRef=useRef(null);
+  const roadmapScrollRef=useRef(null);
+  const roadmapAutoScrollKeyRef=useRef("");
   const goalNoteTimers=useRef({});
   const subNoteTimers=useRef({});
   const goalPatchTimers=useRef({});
@@ -442,14 +454,33 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     if(onViewChange) onViewChange(view);
   },[view,onViewChange]);
 
+  useEffect(()=>{
+    const measure=()=>{
+      if(!roadmapScrollRef.current) return;
+      setViewportWidth(roadmapScrollRef.current.clientWidth||0);
+    };
+    measure();
+    window.addEventListener("resize",measure);
+    return ()=>window.removeEventListener("resize",measure);
+  },[zoomLevel,view,isMobile]);
+
   const statusById=Object.fromEntries(STATUSES.map(s=>[s.id,s]));
   const priorityById=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
+  const priorityInitialById=Object.fromEntries(PRIORITIES.map(p=>[p.id,getPriorityInitial(p)]));
   const effortByValue=Object.fromEntries(EFFORT_LABELS.map(e=>[e.value,e.label]));
   const habitsById=Object.fromEntries((habits||[]).map(h=>[h.id,h]));
   const activeGoals=goals.filter(g=>!g.archived);
   const archivedGoals=goals.filter(g=>g.archived);
   const selectedGoal=activeGoals.find(g=>g.id===selectedGoalId)||null;
   const isOverdue=(d)=>!!d&&d<todayKey();
+  const LABEL_COL=isMobile?120:190;
+  const priorityInitial=(priorityId)=>priorityInitialById[priorityId]||"?";
+  const truncateRoadmapLabel=(text,max)=>{
+    const safe=String(text||"");
+    if(max<=1) return safe.length?"…":"";
+    return safe.length>max?`${safe.slice(0,max-1)}…`:safe;
+  };
+  const getSubtaskBarLabel=(subtask,width)=>width>MIN_SUBTASK_LABEL_WIDTH?`${subtask.done?"✓ ":""}${subtask.title||""}`:"";
   const formatDueDate=(d)=>d?new Date(`${d}T00:00:00`).toLocaleDateString("nl-NL",{month:"short",day:"numeric"}):"";
   const formatDateRange=(start,end)=>{
     if(start&&end) return `${formatDueDate(start)} → ${formatDueDate(end)}`;
@@ -717,7 +748,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   minDateTarget.setDate(minDateTarget.getDate()+ZOOM_LEVELS[zoomLevel].days);
   const endDate=maxDue>minDateTarget?maxDue:minDateTarget;
   const totalDays=Math.max(1,Math.ceil((endDate-minDate)/MS_PER_DAY));
-  const containerWidth=Math.max(720,totalDays*ZOOM_LEVELS[zoomLevel].cellWidth);
+  const zoomCellWidth=Math.max(MIN_CELL_WIDTH,(viewportWidth||DEFAULT_VIEWPORT_WIDTH)/ZOOM_LEVELS[zoomLevel].days);
+  const containerWidth=Math.max(280,viewportWidth-LABEL_COL-30,totalDays*zoomCellWidth);
   const monthTicks=[];
   const weekTicks=[];
   const monthCursor=new Date(minDate.getFullYear(),minDate.getMonth(),1);
@@ -732,6 +764,14 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     weekCursor.setDate(weekCursor.getDate()+7);
   }
   const todayPosition=Math.max(0,Math.min(containerWidth,getRoadmapPosition(new Date(),minDate,totalDays,containerWidth)));
+  useEffect(()=>{
+    if(view!=="roadmap"||!roadmapScrollRef.current||isMobile) return;
+    const scrollKey=`${view}-${zoomLevel}-${Math.round((viewportWidth||0)/50)}`;
+    if(roadmapAutoScrollKeyRef.current===scrollKey) return;
+    roadmapAutoScrollKeyRef.current=scrollKey;
+    const target=Math.max(0,todayPosition-(viewportWidth||0)*TODAY_SCROLL_OFFSET_RATIO);
+    roadmapScrollRef.current.scrollLeft=target;
+  },[view,zoomLevel,todayPosition,viewportWidth,isMobile]);
   const tabLeftByView={list:"3px",roadmap:"calc(33.333% + 1px)",board:"calc(66.666% + 1px)"};
   const tabSliderLeft=tabLeftByView[view]||tabLeftByView.list;
   const handleBoardDrop=async(statusId)=>{
@@ -748,6 +788,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const openAddFromColumn=(status)=>{ setView("list"); setShowAddForm(true); setNewGoalForm(f=>({...f,status})); };
   const roadmapLayout=roadmapGoals.reduce((acc,g)=>{
     const status=statusById[g.status]||statusById.not_started;
+    const progress=effectiveProgress(g);
+    const overdueGoal=!!(g.due_date&&g.due_date<todayKey()&&g.status!=="done");
     const subItems=goalSubs(g.id);
     const createdRaw=String(g.created_at||todayKey()||"");
     const createdDate=/^\d{4}-\d{2}-\d{2}/.test(createdRaw)?createdRaw.slice(0,10):todayKey();
@@ -761,36 +803,52 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     acc.rows[g.id]={start,end,top:top+18,color:g.color||C.accent};
     acc.nodes.push(
       <div key={`goal_${g.id}`}>
-        <button aria-label={roadmapExpanded[g.id]!==false?`Collapse ${g.title}`:`Expand ${g.title}`} onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{roadmapExpanded[g.id]!==false?<ChevronDown size={14} strokeWidth={2}/>:<ChevronRight size={14} strokeWidth={2}/>}</button>
-        <div style={{position:"absolute",left:-164,top:top+10,width:160,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
-        <button aria-label={`Goal ${g.title}, ${status.label}`} onClick={()=>setSelectedGoalId(g.id)} title={`${g.title} • ${formatDateRange(g.start_date,g.due_date)} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap",border:"none",cursor:"pointer"}}>
-          {g.title}
+        {!isMobile&&<button aria-label={roadmapExpanded[g.id]!==false?`Collapse ${g.title}`:`Expand ${g.title}`} onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-LABEL_COL+6,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{roadmapExpanded[g.id]!==false?<ChevronDown size={14} strokeWidth={2}/>:<ChevronRight size={14} strokeWidth={2}/>}</button>}
+        <div style={{position:"absolute",left:-LABEL_COL+26,top:top+10,width:LABEL_COL-30,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{truncateRoadmapLabel(g.title,isMobile?12:36)}</div>
+        <button aria-label={`Goal ${g.title}, ${status.label}`} onClick={()=>setSelectedGoalId(g.id)} title={`${g.title} • ${formatDateRange(g.start_date,g.due_date)} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap",border:overdueGoal?`2px dashed ${C.danger}`:"none",cursor:"pointer"}}>
+          <span className="roadmap-bar-progress" style={{width:`${progress}%`}}/>
+          <span style={{position:"relative",zIndex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:6}}>{g.title}</span>
+          {barWidth>MIN_BAR_WIDTH_FOR_INDICATORS&&(
+            <span style={{position:"relative",zIndex:1,fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:6,flexShrink:0}}>
+              <span>{priorityInitial(g.priority)}</span>
+              <span style={{color:status.color||"#fff"}}>●</span>
+            </span>
+          )}
         </button>
         {goalMilestones(g.id).map(m=>{
           const x=getRoadmapPosition(new Date(`${m.date}T00:00:00`),minDate,totalDays,containerWidth);
+          const isPast=!!(m.date&&m.date<todayKey());
+          const isMissed=!!(isPast&&g.status!=="done");
+          const milestoneColor=isMissed?C.danger:(isPast?C.done:(g.color||C.accent));
+          const milestoneSize=isMobile?18:14;
           return (
-            <div
-              key={m.id}
-              className="milestone-diamond"
-              title={`${m.title} • ${formatDueDate(m.date)}`}
-              onClick={()=>startMilestoneEdit(m)}
-              style={{left:x-5,top:top+13,background:g.color||C.accent}}
-            />
+            <div key={m.id} style={{position:"absolute",left:x-(milestoneSize/2),top:top+13}}>
+              <div
+                className="milestone-diamond"
+                title={`${m.title} • ${formatDueDate(m.date)}`}
+                onClick={()=>startMilestoneEdit(m)}
+                style={{background:milestoneColor}}
+              />
+              <div className="milestone-label" style={{position:"absolute",top:isMobile?20:18,left:isMobile?-10:10,fontSize:11,color:C.muted,whiteSpace:"nowrap",background:isMobile?C.cardBg:"transparent",border:isMobile?`1px solid ${C.border}`:"none",padding:isMobile?"2px 6px":0,borderRadius:isMobile?6:0,opacity:isMobile?1:0,pointerEvents:"none"}}>
+                {m.title} · {formatDueDate(m.date)}
+              </div>
+            </div>
           );
         })}
       </div>
     );
     acc.top+=44;
-    if(roadmapExpanded[g.id]!==false){
+    if(!isMobile&&roadmapExpanded[g.id]!==false){
       subItems.forEach(s=>{
         const subStart=s.start_date?getRoadmapPosition(new Date(`${s.start_date}T00:00:00`),minDate,totalDays,containerWidth):start;
         const subEnd=s.due_date?getRoadmapPosition(new Date(`${s.due_date}T00:00:00`),minDate,totalDays,containerWidth):end;
         const subWidth=Math.max(18,subEnd-subStart);
+        const subtaskBarLabel=getSubtaskBarLabel(s,subWidth);
         acc.nodes.push(
           <div key={`sub_${s.id}`}>
-            <div aria-label={`Subtask of ${g.title}: ${s.title}`} style={{position:"absolute",left:-140,top:acc.top+2,width:130,fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>└─ {s.title}</div>
-            <div title={`${s.title} • ${formatDateRange(s.start_date,s.due_date)} • ${s.done?"Done":"Pending"} • Assignee note: ${s.note||"none"}`} style={{position:"absolute",left:subStart+24,top:acc.top,width:subWidth,height:20,borderRadius:999,border:s.due_date?"none":`1px dotted ${(g.color||C.accent)}AA`,background:s.done?`repeating-linear-gradient(135deg, ${(g.color||C.accent)}, ${(g.color||C.accent)} 8px, ${(g.color||C.accent)}CC 8px, ${(g.color||C.accent)}CC 16px)`:`${(g.color||C.accent)}88`,display:"flex",alignItems:"center",padding:"0 8px",fontSize:11,color:"#fff"}}>
-              {s.done?<Check size={11} strokeWidth={2.4}/>:null}
+            <div aria-label={`Subtask of ${g.title}: ${s.title}`} style={{position:"absolute",left:-LABEL_COL+26,top:acc.top+2,width:LABEL_COL-30,fontSize:13,color:C.muted,textDecoration:s.done?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>└─ {s.title}</div>
+            <div title={`${s.title} • ${formatDateRange(s.start_date,s.due_date)} • ${s.done?"Done":"Pending"} • Assignee note: ${s.note||"none"}`} style={{position:"absolute",left:subStart+24,top:acc.top,width:subWidth,height:20,borderRadius:999,border:s.due_date?"none":`1px dotted ${(g.color||C.accent)}AA`,background:s.done?`repeating-linear-gradient(135deg, ${(g.color||C.accent)}, ${(g.color||C.accent)} 8px, ${(g.color||C.accent)}CC 8px, ${(g.color||C.accent)}CC 16px)`:`${(g.color||C.accent)}88`,display:"flex",alignItems:"center",padding:"0 8px",fontSize:11,color:"#fff",opacity:s.done?0.5:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {subtaskBarLabel||(s.done?<Check size={11} strokeWidth={2.4}/>:null)}
             </div>
           </div>
         );
@@ -1112,33 +1170,66 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       )}
 
       {view==="roadmap"&&(
-        <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 16px",overflowX:"auto",minHeight:400}}>
-          <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginBottom:10}}>
+        <div ref={roadmapScrollRef} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 16px",overflowX:"auto",minHeight:400}}>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginBottom:isMobile?2:10}}>
             {Object.keys(ZOOM_LEVELS).map(z=>(
-              <button key={z} onClick={()=>setZoomLevel(z)} style={{height:30,border:`1px solid ${zoomLevel===z?C.accent:C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:zoomLevel===z?C.hoverBg:C.inputBg,color:zoomLevel===z?C.accent:C.muted,cursor:"pointer"}}>{z[0].toUpperCase()+z.slice(1)}</button>
+              <button key={z} onClick={()=>setZoomLevel(z)} style={{height:30,border:`1px solid ${zoomLevel===z?C.accent:C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:zoomLevel===z?C.hoverBg:C.inputBg,color:zoomLevel===z?C.accent:C.muted,cursor:"pointer"}}>{ZOOM_LEVELS[z].label}</button>
             ))}
           </div>
+          {!isMobile&&<div style={{fontSize:11,color:C.muted,textAlign:"right",marginBottom:10}}>On mobile devices, a simplified card-based layout is shown.</div>}
           {roadmapGoals.length===0?(
             <div style={{textAlign:"center",padding:"3rem 1rem"}}>
               <p style={{fontSize:16,fontWeight:600,color:C.text,marginBottom:6}}>No goals with timeline dates</p>
               <p style={{fontSize:13,color:C.muted,marginBottom:12}}>Add start/end dates to your goals to see them on the roadmap</p>
               <button onClick={()=>setView("list")} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer"}}>Go to list view</button>
             </div>
+          ):isMobile?(
+            <div style={{display:"grid",gap:10}}>
+              {[...roadmapGoals].sort((a,b)=>{
+                const ad=a.due_date||"9999-12-31";
+                const bd=b.due_date||"9999-12-31";
+                return ad.localeCompare(bd);
+              }).map(g=>{
+                const status=statusById[g.status]||statusById.not_started;
+                const pct=effectiveProgress(g);
+                return (
+                  <button key={g.id} className="roadmap-mobile-card" onClick={()=>setSelectedGoalId(g.id)} style={{background:C.inputBg,border:`1px solid ${C.border}`,borderLeft:`4px solid ${g.color||C.accent}`,borderRadius:10,padding:"10px 12px",textAlign:"left",cursor:"pointer"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                      <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
+                      <span style={{fontSize:10,color:status.color,background:`${status.color}22`,borderRadius:999,padding:"2px 7px",flexShrink:0}}>{status.label}</span>
+                    </div>
+                    <div style={{fontSize:11,color:C.muted,marginTop:4}}>{formatDateRange(g.start_date,g.due_date)}</div>
+                    <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden",marginTop:8}}>
+                      <div style={{height:"100%",width:`${pct}%`,background:g.color||C.accent}}/>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           ):(
-            <div style={{minWidth:containerWidth+210}}>
-              <div style={{position:"relative",height:46,marginLeft:190,borderBottom:`1px solid ${C.border}`}}>
-                {monthTicks.map((m)=>{
+            <div style={{minWidth:containerWidth+LABEL_COL+20}}>
+              {ZOOM_LEVELS[zoomLevel].showDetailHint&&<div style={{marginLeft:LABEL_COL,fontSize:11,color:C.muted,marginBottom:6}}>Zoom in to month/week for more detailed labels.</div>}
+              <div style={{position:"relative",height:46,marginLeft:LABEL_COL,borderBottom:`1px solid ${C.border}`}}>
+                {monthTicks.map((m,i)=>{
                   const x=getRoadmapPosition(m,minDate,totalDays,containerWidth);
-                  return <div key={m.toISOString()} style={{position:"absolute",left:x,top:2,fontSize:12,fontWeight:600,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("nl-NL",{month:"short"})}</div>;
+                  const next=monthTicks[i+1]?getRoadmapPosition(monthTicks[i+1],minDate,totalDays,containerWidth):containerWidth;
+                  const hasRoom=(next-x)>=MIN_MONTH_LABEL_SPACING;
+                  return (
+                    <React.Fragment key={m.toISOString()}>
+                      <div style={{position:"absolute",left:x,top:0,bottom:0,width:1,background:C.rowDivider}}/>
+                      {hasRoom&&<div style={{position:"absolute",left:x+4,top:2,fontSize:12,fontWeight:600,color:C.muted}}>{m.toLocaleDateString("nl-NL",{month:"short"})}</div>}
+                    </React.Fragment>
+                  );
                 })}
-                {weekTicks.map((w)=>{
+                {(zoomLevel==="week"||zoomLevel==="month")&&weekTicks.map((w)=>{
                   const x=getRoadmapPosition(w,minDate,totalDays,containerWidth);
                   return <div key={`w_${w.toISOString()}`} style={{position:"absolute",left:x,bottom:0,width:1,height:8,background:C.border}}/>;
                 })}
                 <div style={{position:"absolute",left:todayPosition,top:0,bottom:0,width:2,background:C.accent,zIndex:2}}/>
-                <div style={{position:"absolute",left:todayPosition+4,top:2,fontSize:11,color:C.accent,fontWeight:600}}>Today</div>
+                <div style={{position:"absolute",left:todayPosition-4,top:0,fontSize:10,color:C.accent}}>▼</div>
+                {containerWidth-todayPosition>MIN_TODAY_LABEL_SPACE&&<div style={{position:"absolute",left:todayPosition+4,top:2,fontSize:11,color:C.accent,fontWeight:600}}>Today</div>}
               </div>
-              <div style={{position:"relative",width:containerWidth,marginLeft:190,paddingTop:8,paddingBottom:8,height:roadmapLayout.top+12}}>
+              <div style={{position:"relative",width:containerWidth,marginLeft:LABEL_COL,paddingTop:8,paddingBottom:8,height:roadmapLayout.top+12}}>
                 <svg aria-hidden="true" style={{position:"absolute",left:0,top:0,width:containerWidth,height:roadmapLayout.top+12,pointerEvents:"none"}}>
                   {dependencyLinks.map(line=>(
                     <g key={line.id}>
