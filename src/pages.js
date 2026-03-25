@@ -429,14 +429,16 @@ function GoalsPage({userId,habits,completions,C}) {
     const pct=items.length?Math.round((done/items.length)*100):0;
     return {items,done,pct};
   };
-  const isHabitDoneToday=(habitId)=>!!(habitId&&completions?.some(c=>c.habit_id===habitId&&c.date===todayKey()));
+  const today=useMemo(()=>todayKey(),[]);
+  const todayCompletions=useMemo(()=> (completions||[]).filter(c=>c.date===today),[completions,today]);
+  const todayHabitIds=useMemo(()=>new Set(todayCompletions.map(c=>c.habit_id)),[todayCompletions]);
+  const isHabitDoneToday=(habitId)=>!!(habitId&&todayHabitIds.has(habitId));
 
   useEffect(()=>{
     const linkedGoals=activeGoals.filter(g=>g.linked_habit_id);
     if(!linkedGoals.length) return;
-    const today=todayKey();
     const linkedHabitIds=new Set(linkedGoals.map(g=>g.linked_habit_id));
-    const nextMessage=(completions||[]).find(c=>c.date===today&&!seenCompletionIds.current.has(c.id)&&linkedHabitIds.has(c.habit_id));
+    const nextMessage=todayCompletions.find(c=>!seenCompletionIds.current.has(c.id)&&linkedHabitIds.has(c.habit_id));
     if(!nextMessage) return;
     seenCompletionIds.current.add(nextMessage.id);
     const linkedGoal=linkedGoals.find(g=>g.linked_habit_id===nextMessage.habit_id);
@@ -444,7 +446,7 @@ function GoalsPage({userId,habits,completions,C}) {
       const linkedHabit=habitsById[linkedGoal.linked_habit_id];
       setToast(`${linkedHabit?.name||"Habit"} completed → Goal: ${linkedGoal.title} ↑`);
     }
-  },[completions,activeGoals,habitsById]);
+  },[todayCompletions,activeGoals,habitsById]);
 
   const updateGoal=async(id,patch)=>{
     setGoals(g=>g.map(x=>x.id===id?{...x,...patch}:x));
