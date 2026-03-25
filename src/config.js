@@ -11,7 +11,7 @@ function FallbackIcon({size=16,color="currentColor",strokeWidth=2,fill="none",..
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden={props["aria-label"]?undefined:"true"}
+      aria-hidden={!props["aria-label"]}
       {...props}
     >
       <circle cx="12" cy="12" r="8" />
