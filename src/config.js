@@ -23,6 +23,22 @@ const TAGS = [
   { label:"Social", key:"social" },
   { label:"Other",  key:"other" },
 ];
+const STATUSES = [
+  { id:"not_started", label:"Not started", color:"#8C7560" },
+  { id:"in_progress", label:"In progress", color:"#C4884A" },
+  { id:"done", label:"Done", color:"#5A8A5A" },
+  { id:"blocked", label:"Blocked", color:"#C45A5A" },
+];
+const PRIORITIES = [
+  { id:"low", label:"Low", color:"#8C7560" },
+  { id:"medium", label:"Medium", color:"#C4884A" },
+  { id:"high", label:"High", color:"#D47A2A" },
+  { id:"critical", label:"Critical", color:"#C45A5A" },
+];
+const GOAL_COLORS = [
+  "#C4884A", "#5A8A5A", "#6B6BAA", "#C45A7A",
+  "#4A8AAA", "#AA8A4A", "#7AAA7A", "#AA4A6B"
+];
 const LIGHT = {
   bg:"#FDFAF6", surface:"#F7F2EA", border:"#E8DFD0",
   accent:"#C4884A", accentDark:"#8B5E30",
