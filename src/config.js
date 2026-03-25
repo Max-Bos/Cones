@@ -76,6 +76,11 @@ const DARK = {
   },
 };
 
+function getTagTheme(tag, C) {
+  const tagConfig = TAGS.find(x=>x.label===tag);
+  return (tagConfig ? C.tags?.[tagConfig.key] : null) || C.tags?.other || {color:C.accent,bg:C.hoverBg};
+}
+
 const todayKey = () => new Date().toISOString().slice(0,10);
 const last90 = () => { const d=[]; for(let i=89;i>=0;i--){ const x=new Date(); x.setDate(x.getDate()-i); d.push(x.toISOString().slice(0,10)); } return d; };
 const last30 = () => last90().slice(-30);

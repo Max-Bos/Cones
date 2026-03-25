@@ -48,10 +48,9 @@ function NavItem({icon,label,active,onClick,C,mobile}) {
 }
 
 function TagPill({tag,C}) {
-  const tk = TAGS.find(x=>x.label===tag);
-  const t = tk ? C.tags?.[tk.key] : null;
-  if(!t) return null;
-  return <span style={{fontSize:11,fontWeight:500,color:t.color,background:t.bg,borderRadius:6,padding:"3px 10px",border:`1px solid ${t.color}${C.tagBorderAlpha}`,flexShrink:0,textTransform:"capitalize"}}>{tag.toLowerCase()}</span>;
+  const tagTheme = getTagTheme(tag,C);
+  if(!tagTheme) return null;
+  return <span style={{fontSize:11,fontWeight:500,color:tagTheme.color,background:tagTheme.bg,borderRadius:6,padding:"3px 10px",border:`1px solid ${tagTheme.color}${C.tagBorderAlpha}`,flexShrink:0}}>{tag}</span>;
 }
 
 function RichEditor({value,onChange,placeholder,C}) {

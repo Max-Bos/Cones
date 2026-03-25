@@ -12,6 +12,13 @@ function EmptyState({C,title,message}) {
   );
 }
 
+function getNotePreview(html) {
+  if(!html) return "No content yet";
+  const parsed = new DOMParser().parseFromString(html,"text/html");
+  const text = (parsed.body?.textContent || "").replace(/\s+/g," ").trim();
+  return text || "No content yet";
+}
+
 function AuthPage({C}) {
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
@@ -176,17 +183,17 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
         const isOpen=!!expanded[h.id];
         const noteVal=localNotes[`${h.id}_${today}`]??comp?.note??"";
         const heatData=days.map(d=>completions.find(c=>c.habit_id===h.id&&c.date===d)?2:0);
-        const tk=TAGS.find(t=>t.label===h.tag);
-        const accent=tk?C.tags[tk.key].color:C.accent;
+        const tagConfig=TAGS.find(t=>t.label===h.tag);
+        const tagAccentColor=tagConfig?C.tags[tagConfig.key].color:C.accent;
         return (
-          <div key={h.id} style={{background:done?C.successBg:C.cardBg,border:`1px solid ${done?C.done:C.border}`,borderRadius:12,padding:"18px 20px",marginBottom:12,position:"relative",transition:"all 0.3s ease",boxShadow:`inset 4px 0 0 ${accent}`}}>
+          <div key={h.id} style={{background:done?C.successBg:C.cardBg,border:`1px solid ${done?C.done:C.border}`,borderRadius:12,padding:"18px 20px",marginBottom:12,position:"relative",transition:"all 0.3s ease",boxShadow:`inset 4px 0 0 ${tagAccentColor}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div onClick={()=>toggle(h.id)} style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${done?C.done:C.border}`,background:done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s ease",transform:done?"scale(1.06)":"scale(1)"}}>
-                {done&&<svg width="12" height="10" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7.5L10 1" stroke={C.onAccent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              <div onClick={()=>toggle(h.id)} aria-label={`Mark ${h.name} as ${done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${done?C.done:C.border}`,background:done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s ease",transform:done?"scale(1.06)":"scale(1)"}}>
+                {done&&<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7.5L10 1" stroke={C.onAccent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
               </div>
               <span style={{fontSize:14,fontWeight:400,flex:1,color:done?C.done:C.text,textDecoration:done?"line-through":"none",opacity:done?0.76:1,transition:"all 0.3s ease"}}>{h.name}</span>
               {h.tag&&<TagPill tag={h.tag} C={C}/>}
-              {streak>0&&<span style={{fontSize:12,fontWeight:500,color:C.accentDark,background:C.streakBg,border:`1px solid ${C.streakBorder}`,borderRadius:999,padding:"3px 12px",flexShrink:0}}>🔥 {streak}</span>}
+              {streak>0&&<span aria-label={`Current streak: ${streak} days`} style={{fontSize:12,fontWeight:500,color:C.accentDark,background:C.streakBg,border:`1px solid ${C.streakBorder}`,borderRadius:999,padding:"3px 12px",flexShrink:0}}>🔥 {streak}</span>}
               <button onClick={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))} style={{width:32,height:32,fontSize:12,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
             </div>
             {isOpen&&(
@@ -280,14 +287,14 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
       {TAGS.map(tag=>{
         const group=habits.filter(h=>(h.tag||"Other")===tag.label);
         if(!group.length) return null;
-        const t = C.tags[tag.key];
+        const tagTheme = getTagTheme(tag.label,C);
         return (
           <div key={tag.label} style={{marginBottom:"1.9rem"}}>
-            <div className="section-label" style={{color:t.color,marginBottom:10}}>{tag.label}</div>
+            <div className="section-label" style={{color:tagTheme.color,marginBottom:10}}>{tag.label}</div>
             {group.map(h=>{
               const streak=computeStreak(h.id,completions); const longest=computeLongest(h.id,completions);
               return (
-                <div key={h.id} draggable={true} onDragStart={()=>setDragId(h.id)} onDragOver={e=>{e.preventDefault();setDragOverId(h.id);}} onDragLeave={()=>dragOverId===h.id&&setDragOverId(null)} onDrop={e=>{e.preventDefault();onDrop(h.id);}} onDragEnd={()=>{setDragId(null);setDragOverId(null);}} style={{display:"flex",alignItems:"center",gap:10,background:C.cardBg,border:`1px solid ${dragOverId===h.id?C.accent:C.border}`,borderRadius:12,padding:"15px 16px",marginBottom:8,boxShadow:`inset 4px 0 0 ${t.color}`}}>
+                <div key={h.id} draggable={true} onDragStart={()=>setDragId(h.id)} onDragOver={e=>{e.preventDefault();setDragOverId(h.id);}} onDragLeave={()=>dragOverId===h.id&&setDragOverId(null)} onDrop={e=>{e.preventDefault();onDrop(h.id);}} onDragEnd={()=>{setDragId(null);setDragOverId(null);}} style={{display:"flex",alignItems:"center",gap:10,background:C.cardBg,border:`1px solid ${dragOverId===h.id?C.accent:C.border}`,borderRadius:12,padding:"15px 16px",marginBottom:8,boxShadow:`inset 4px 0 0 ${tagTheme.color}`}}>
                   <span style={{fontSize:16,color:C.faint,cursor:"grab",userSelect:"none"}}>⠿</span>
                   {editingId===h.id?(
                     <input value={editVal} autoFocus onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();saveEdit(h.id);} if(e.key==="Escape"){e.preventDefault();cancelEdit();}}} onBlur={()=>onEditBlur(h.id)}
@@ -369,8 +376,8 @@ function GoalsPage({userId,C}) {
               <div style={{borderTop:`1px solid ${C.rowDivider}`,paddingTop:12}}>
                 {gSubs.map(s=>(
                   <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0"}}>
-                    <div onClick={()=>toggleSub(s)} style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s ease",transform:s.done?"scale(1.06)":"scale(1)"}}>
-                      {s.done&&<svg width="10" height="8" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s ease",transform:s.done?"scale(1.06)":"scale(1)"}}>
+                      {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
                     <span style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1}}>{s.title}</span>
                     <button onClick={()=>delSub(s.id)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
@@ -443,7 +450,10 @@ function NotesPage({userId,C}) {
   const activeNote=notes.find(n=>n.id===active);
 
   const fmtDate=(d)=>d?new Date(d).toLocaleDateString("en-NL",{month:"short",day:"numeric"}):"";
-  const preview=(html)=>((html||"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()||"No content yet");
+  const notePreviews = useMemo(
+    ()=>Object.fromEntries(notes.map(n=>[n.id,getNotePreview(n.content)])),
+    [notes]
+  );
 
   if(loading) return <Spinner C={C}/>;
 
@@ -461,7 +471,7 @@ function NotesPage({userId,C}) {
             <div key={n.id} onClick={()=>openNote(n.id)} style={{padding:"10px 12px",borderRadius:10,marginBottom:6,cursor:"pointer",background:n.id===active?C.hoverBg:"transparent",border:`1px solid ${n.id===active?C.accent:C.border}`,boxShadow:n.id===active?`inset 3px 0 0 ${C.accent}`:"none",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,color:n.id===active?C.accent:C.text,fontWeight:n.id===active?500:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.title||"Untitled"}</div>
-                <div style={{fontSize:12,color:C.muted,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview(n.content)}</div>
+                <div style={{fontSize:12,color:C.muted,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{notePreviews[n.id]}</div>
               </div>
               <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{width:32,height:32,fontSize:15,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,flexShrink:0,borderRadius:8}}>&times;</button>
             </div>
@@ -497,7 +507,7 @@ function NotesPage({userId,C}) {
               <div key={n.id} onClick={()=>openNote(n.id)} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:14,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{n.title||"Untitled"}</div>
-                  <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview(n.content)}</div>
+                  <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{notePreviews[n.id]}</div>
                 </div>
                 <button onClick={e=>{e.stopPropagation();delNote(n.id);}} style={{width:32,height:32,fontSize:18,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,padding:"4px",flexShrink:0,borderRadius:8}}>&times;</button>
               </div>
