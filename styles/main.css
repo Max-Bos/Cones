@@ -183,14 +183,31 @@ button, a, [role="button"], [aria-label], input, select, textarea { transition: 
 .life-week-cell { width: 8px; height: 8px; border-radius: 2px; }
 
 .milestone-diamond {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   transform: rotate(45deg);
   border-radius: 2px;
   position: absolute;
   cursor: pointer;
   z-index: 4;
 }
+.milestone-label {
+  transition: opacity 0.15s ease;
+}
+.milestone-diamond:hover + .milestone-label {
+  opacity: 1 !important;
+}
+.roadmap-bar-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  pointer-events: none;
+}
+.roadmap-mobile-card { transition: transform 0.16s ease, box-shadow 0.16s ease; }
+.roadmap-mobile-card:active { transform: scale(0.99); }
 
 .template-pill:hover { transform: translateY(-1px); }
 .blocked-goal-card { opacity: 0.94; }
@@ -217,4 +234,5 @@ button, a, [role="button"], [aria-label], input, select, textarea { transition: 
   .life-week-year-label { display: none; }
   .life-weeks-grid-row { grid-template-columns: repeat(52, 5px); gap: 1px; }
   .life-week-cell { width: 5px; height: 5px; border-radius: 1px; }
+  .milestone-diamond { width: 18px; height: 18px; }
 }
