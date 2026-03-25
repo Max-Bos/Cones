@@ -1,5 +1,8 @@
 const { useState, useEffect, useRef, useMemo } = React;
-const Lucide = (typeof LucideReact === "object" && LucideReact) ? LucideReact : {};
+const Lucide =
+  (typeof LucideReact !== "undefined" && LucideReact)
+  || (typeof window !== "undefined" && (window.LucideReact || window.lucideReact || window.lucide))
+  || {};
 function FallbackIcon({size=16,color="currentColor",strokeWidth=2,fill="none",...props}) {
   return (
     <svg
