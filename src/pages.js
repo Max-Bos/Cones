@@ -335,7 +335,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 }
 
 /* ── GOALS ── */
-function GoalsPage({userId,habits,completions,C}) {
+function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const MS_PER_DAY=1000*60*60*24;
   const MOBILE_QUERY="(max-width: 639px)";
   const ZOOM_LEVELS={
@@ -414,6 +414,10 @@ function GoalsPage({userId,habits,completions,C}) {
     const t=setTimeout(()=>setToast(""),2200);
     return ()=>clearTimeout(t);
   },[toast]);
+
+  useEffect(()=>{
+    if(onViewChange) onViewChange(view);
+  },[view,onViewChange]);
 
   const statusById=Object.fromEntries(STATUSES.map(s=>[s.id,s]));
   const priorityById=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
