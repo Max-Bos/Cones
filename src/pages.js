@@ -68,7 +68,7 @@ function AuthPage({C}) {
     <div style={{minHeight:"100vh",background:C.bgGradient||C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
       <div style={{maxWidth:420,width:"100%"}}>
         <div className="glass-card fadein" style={{padding:36,backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)"}}>
-          <h1 style={{fontSize:32,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",marginBottom:6}}><span aria-hidden="true">🔺</span> Cones</h1>
+          <h1 style={{fontSize:32,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",marginBottom:6,display:"flex",alignItems:"center",gap:8}}><Triangle aria-hidden="true" size={20} fill="currentColor" strokeWidth={1.8}/> Cones</h1>
           <p style={{fontSize:14,color:C.muted,marginBottom:24}}>Stay consistent, one day at a time.</p>
           <div className="glass-card-sm" style={{position:"relative",display:"flex",borderRadius:10,padding:3,marginBottom:22}}>
             <div style={{position:"absolute",top:3,bottom:3,left:mode==="login"?"3px":"calc(50% + 1px)",width:"calc(50% - 4px)",borderRadius:8,background:C.accent,transition:"all 0.2s ease"}}/>
@@ -97,7 +97,7 @@ function SettingsPage({user,C,dark,setDark,reminder,setReminder,onSignOut}) {
     const perm=await Notification.requestPermission();
     if(perm==="granted"){
       const t=prompt("Daily reminder time (e.g. 20:00):","20:00");
-      if(t){setReminder(t);new Notification("Cones reminder set ✓",{body:`Reminder set for ${t} daily.`});}
+      if(t){setReminder(t);new Notification("Cones reminder set",{body:`Reminder set for ${t} daily.`});}
     }
   };
 
@@ -201,7 +201,7 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
         const linkedCount=linkedGoalCounts[h.id]||0;
         const pingCount=linkedGoalPings[h.id]||0;
         const linkedLabel=`${linkedCount} linked goal${linkedCount===1?"":"s"}`;
-        const linkedBadgeText=`🔗 ${linkedCount}${pingCount>0?` +${pingCount}`:""}`;
+        const linkedBadgeText=`${linkedCount}${pingCount>0?` +${pingCount}`:""}`;
         return (
           <div key={h.id} className="glass-card card-hover" style={{background:done?C.successBg:C.cardBg,border:`1px solid ${done?C.done:(C.cardBorder||C.border)}`,borderRadius:16,padding:"18px 20px",marginBottom:12,position:"relative",transition:"all 0.3s ease",boxShadow:`inset 5px 0 0 ${tagAccentColor}, ${C.cardShadow}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -210,9 +210,9 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
               </div>
               <span style={{fontSize:14,fontWeight:400,flex:1,color:done?C.done:C.text,textDecoration:done?"line-through":"none",opacity:done?0.76:1,transition:"all 0.3s ease"}}>{h.name}</span>
               {h.tag&&<TagPill tag={h.tag} C={C}/>}
-              {linkedCount>0&&<span title={linkedLabel} style={{fontSize:12,fontWeight:500,color:C.accent,border:`1px solid ${C.accent}55`,background:C.hoverBg,borderRadius:999,padding:"3px 10px",flexShrink:0}}>{linkedBadgeText}</span>}
-              {streak>0&&<span aria-label={`Current streak: ${streak} days`} style={{fontSize:12,fontWeight:500,color:C.accentDark,background:C.streakBg,border:`1px solid ${C.streakBorder}`,borderRadius:999,padding:"3px 12px",flexShrink:0}}>🔥 {streak}</span>}
-              <button onClick={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))} style={{width:32,height:32,fontSize:12,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
+              {linkedCount>0&&<span title={linkedLabel} style={{fontSize:12,fontWeight:500,color:C.accent,border:`1px solid ${C.accent}55`,background:C.hoverBg,borderRadius:999,padding:"3px 10px",flexShrink:0,display:"inline-flex",alignItems:"center",gap:5}}><Link2 size={12} strokeWidth={2}/>{linkedBadgeText}</span>}
+              {streak>0&&<span aria-label={`Current streak: ${streak} days`} style={{fontSize:12,fontWeight:500,color:C.accentDark,background:C.streakBg,border:`1px solid ${C.streakBorder}`,borderRadius:999,padding:"3px 12px",flexShrink:0,display:"inline-flex",alignItems:"center",gap:5}}><Flame size={12} strokeWidth={2}/>{streak}</span>}
+              <button onClick={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))} style={{width:32,height:32,fontSize:12,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{isOpen?<ChevronUp size={14} strokeWidth={2}/>:<ChevronDown size={14} strokeWidth={2}/>}</button>
             </div>
             {isOpen&&(
               <div style={{marginTop:12,borderTop:`1px solid ${C.rowDivider}`,paddingTop:12}}>
@@ -238,7 +238,7 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
           <div className="progress-track" style={{background:C.borderSolid||C.border}}>
             <div className={`progress-fill ${pct===100?"done":""}`} style={{width:`${pct}%`,background:pct===100?undefined:(`linear-gradient(90deg, ${C.accent}, ${C.accentLight||C.accent})`),animation:pct===100?"progressPulse 0.8s ease 1":"none"}}/>
           </div>
-          {pct===100&&<p style={{fontSize:13,color:C.done,marginTop:8,fontWeight:500}}>All done for today ✓</p>}
+          {pct===100&&<p style={{fontSize:13,color:C.done,marginTop:8,fontWeight:500,display:"inline-flex",alignItems:"center",gap:6}}>All done for today <Check size={14} strokeWidth={2}/></p>}
         </div>
       )}
     </div>
@@ -313,16 +313,16 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
               const streak=computeStreak(h.id,completions); const longest=computeLongest(h.id,completions);
               return (
                 <div key={h.id} className="glass-card card-hover" draggable={true} onDragStart={()=>setDragId(h.id)} onDragOver={e=>{e.preventDefault();setDragOverId(h.id);}} onDragLeave={()=>dragOverId===h.id&&setDragOverId(null)} onDrop={e=>{e.preventDefault();onDrop(h.id);}} onDragEnd={()=>{setDragId(null);setDragOverId(null);}} style={{display:"flex",alignItems:"center",gap:10,background:C.cardBg,border:`1px solid ${dragOverId===h.id?C.accent:(C.cardBorder||C.border)}`,borderRadius:16,padding:"15px 16px",marginBottom:8,boxShadow:`inset 5px 0 0 ${tagTheme.color}, ${C.cardShadow}`}}>
-                  <span style={{fontSize:16,color:C.faint,cursor:"grab",userSelect:"none"}}>⠿</span>
+                  <span style={{fontSize:16,color:C.faint,cursor:"grab",userSelect:"none",display:"inline-flex",alignItems:"center"}}><GripVertical size={16} strokeWidth={2}/></span>
                   {editingId===h.id?(
                     <input value={editVal} autoFocus onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();saveEdit(h.id);} if(e.key==="Escape"){e.preventDefault();cancelEdit();}}} onBlur={()=>onEditBlur(h.id)}
                       style={{flex:1,height:42,fontSize:14,fontWeight:500,color:C.text,border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 16px",background:C.inputBg}}/>
                   ):(
                     <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{h.name}</span>
                   )}
-                   <span style={{fontSize:12,color:C.muted,border:`1px solid ${C.streakBorder}`,background:C.streakBg,borderRadius:999,padding:"3px 10px"}}>🔥 {streak}d</span>
+                   <span style={{fontSize:12,color:C.muted,border:`1px solid ${C.streakBorder}`,background:C.streakBg,borderRadius:999,padding:"3px 10px",display:"inline-flex",alignItems:"center",gap:4}}><Flame size={12} strokeWidth={2}/>{streak}d</span>
                    <span style={{fontSize:12,color:C.faint}}>best {longest}d</span>
-                   <button aria-label={`Edit habit: ${h.name}`} onClick={()=>startEdit(h)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>✎</button>
+                   <button aria-label={`Edit habit: ${h.name}`} onClick={()=>startEdit(h)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><Pencil size={14} strokeWidth={2}/></button>
                    <button onClick={()=>del(h.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                 </div>
               );
@@ -637,7 +637,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     if(data){
       setGoals(g=>[...g,data]);
       await delSub(sub.id);
-      setPromoteMsg("Subtask promoted to goal ✓");
+      setPromoteMsg("Subtask promoted to goal");
     }
   };
   const addMilestone=async(goalId)=>{
@@ -761,7 +761,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     acc.rows[g.id]={start,end,top:top+18,color:g.color||C.accent};
     acc.nodes.push(
       <div key={`goal_${g.id}`}>
-        <button aria-label={roadmapExpanded[g.id]!==false?`Collapse ${g.title}`:`Expand ${g.title}`} onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted}}>{roadmapExpanded[g.id]!==false?"▼":"▶"}</button>
+        <button aria-label={roadmapExpanded[g.id]!==false?`Collapse ${g.title}`:`Expand ${g.title}`} onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{roadmapExpanded[g.id]!==false?<ChevronDown size={14} strokeWidth={2}/>:<ChevronRight size={14} strokeWidth={2}/>}</button>
         <div style={{position:"absolute",left:-164,top:top+10,width:160,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
         <button aria-label={`Goal ${g.title}, ${status.label}`} onClick={()=>setSelectedGoalId(g.id)} title={`${g.title} • ${formatDateRange(g.start_date,g.due_date)} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap",border:"none",cursor:"pointer"}}>
           {g.title}
@@ -790,7 +790,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
           <div key={`sub_${s.id}`}>
             <div aria-label={`Subtask of ${g.title}: ${s.title}`} style={{position:"absolute",left:-140,top:acc.top+2,width:130,fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>└─ {s.title}</div>
             <div title={`${s.title} • ${formatDateRange(s.start_date,s.due_date)} • ${s.done?"Done":"Pending"} • Assignee note: ${s.note||"none"}`} style={{position:"absolute",left:subStart+24,top:acc.top,width:subWidth,height:20,borderRadius:999,border:s.due_date?"none":`1px dotted ${(g.color||C.accent)}AA`,background:s.done?`repeating-linear-gradient(135deg, ${(g.color||C.accent)}, ${(g.color||C.accent)} 8px, ${(g.color||C.accent)}CC 8px, ${(g.color||C.accent)}CC 16px)`:`${(g.color||C.accent)}88`,display:"flex",alignItems:"center",padding:"0 8px",fontSize:11,color:"#fff"}}>
-              {s.done?"✓":""}
+              {s.done?<Check size={11} strokeWidth={2.4}/>:null}
             </div>
           </div>
         );
@@ -907,7 +907,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
 
           {activeGoals.length===0&&(
             <div style={{textAlign:"center",padding:"2.8rem 1rem",background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12}}>
-              <div style={{width:82,height:82,borderRadius:"50%",border:`2px solid ${C.border}`,margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,color:C.done}}>✓</div>
+              <div style={{width:82,height:82,borderRadius:"50%",border:`2px solid ${C.border}`,margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,color:C.done}}><Check size={32} strokeWidth={2}/></div>
               <p style={{fontSize:18,fontWeight:600,color:C.text,marginBottom:6}}>No goals yet</p>
               <p style={{fontSize:13,color:C.muted,marginBottom:14}}>Break down your ambitions into achievable milestones</p>
               <button onClick={()=>setShowAddForm(true)} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 16px",fontSize:14,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer"}}>+ Create your first goal</button>
@@ -939,9 +939,9 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                   ):(
                     <span style={{flex:1,fontSize:16,fontWeight:500,color:C.text}}>{g.title}</span>
                   )}
-                  <button title={g.pinned?"Unpin":"Pin"} onClick={()=>updateGoal(g.id,{pinned:!g.pinned})} style={{width:32,height:32,fontSize:14,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>📌</button>
-                  <button aria-label={`Edit goal ${g.title}`} onClick={()=>startGoalEdit(g)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>✎</button>
-                  <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{width:32,height:32,fontSize:11,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
+                  <button title={g.pinned?"Unpin":"Pin"} onClick={()=>updateGoal(g.id,{pinned:!g.pinned})} style={{width:32,height:32,fontSize:14,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{g.pinned?<PinOff size={14} strokeWidth={2}/>:<Pin size={14} strokeWidth={2}/>}</button>
+                  <button aria-label={`Edit goal ${g.title}`} onClick={()=>startGoalEdit(g)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><Pencil size={14} strokeWidth={2}/></button>
+                  <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{width:32,height:32,fontSize:11,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{isOpen?<ChevronUp size={14} strokeWidth={2}/>:<ChevronDown size={14} strokeWidth={2}/>}</button>
                   {isMobile&&<button onClick={()=>setSelectedGoalId(g.id)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:C.text,cursor:"pointer"}}>Open</button>}
                   {pct===100&&<button onClick={()=>updateGoal(g.id,{archived:true})} style={{fontSize:12,color:C.accent,background:C.inputBg,border:`1px solid ${C.accent}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Archive</button>}
                   <button aria-label={`Delete goal ${g.title}`} onClick={()=>delGoal(g.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
@@ -991,14 +991,14 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                   <input type="range" min="0" max="100" value={Math.max(0,Math.min(100,g.manual_progress||0))} onChange={e=>updateGoal(g.id,{manual_progress:parseInt(e.target.value,10)})} style={{width:"100%",marginBottom:8}}/>
                 )}
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.muted,marginBottom:6}}>
-                  <span style={{display:"inline-flex",gap:8,alignItems:"center"}}>Priority: {priority.label} <span style={{fontSize:11,padding:"2px 8px",borderRadius:999,border:`1px solid ${tagTheme.color}55`,background:tagTheme.bg,color:tagTheme.color}}>{g.tag||"Other"}</span> <span>⏱ {(effortByValue[Number(g.effort||0)]||"").split(" ")[0]}</span></span>
+                  <span style={{display:"inline-flex",gap:8,alignItems:"center"}}>Priority: {priority.label} <span style={{fontSize:11,padding:"2px 8px",borderRadius:999,border:`1px solid ${tagTheme.color}55`,background:tagTheme.bg,color:tagTheme.color}}>{g.tag||"Other"}</span> <span style={{display:"inline-flex",alignItems:"center",gap:4}}><Clock size={12} strokeWidth={2}/>{(effortByValue[Number(g.effort||0)]||"").split(" ")[0]}</span></span>
                   <span style={{fontWeight:600,color:pct===100?C.done:C.accent}}>{pct}% {(g.manual_progress??-1)>=0&&<span style={{fontSize:10,color:C.muted}}>M</span>}</span>
                 </div>
-                {dep&&blocked&&<div style={{fontSize:12,color:C.danger,marginBottom:6}}>🔒 Blocked by: {dep.title}</div>}
-                {dep&&!blocked&&<div style={{fontSize:12,color:C.done,marginBottom:6}}>✓ Dependency met</div>}
-                <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:6}}>📅 {formatDateRange(g.start_date,g.due_date)}</div>
+                {dep&&blocked&&<div style={{fontSize:12,color:C.danger,marginBottom:6,display:"inline-flex",alignItems:"center",gap:5}}><Lock size={12} strokeWidth={2}/>Blocked by: {dep.title}</div>}
+                {dep&&!blocked&&<div style={{fontSize:12,color:C.done,marginBottom:6,display:"inline-flex",alignItems:"center",gap:5}}><Check size={12} strokeWidth={2}/>Dependency met</div>}
+                <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:6,display:"inline-flex",alignItems:"center",gap:5}}><Calendar size={12} strokeWidth={2}/>{formatDateRange(g.start_date,g.due_date)}</div>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.muted,marginBottom:6}}>
-                  <span>{done}/{items.length||0} subtasks {linkedHabit?`• 🔗 ${linkedHabit.name} — ${linkedDone?"done today ✓":"not done yet"}`:""}</span>
+                  <span>{done}/{items.length||0} subtasks {linkedHabit&&<span style={{display:"inline-flex",alignItems:"center",gap:4,marginLeft:6}}><Link2 size={12} strokeWidth={2}/>{linkedHabit.name} — {linkedDone?"done today":"not done yet"}{linkedDone&&<Check size={12} strokeWidth={2}/>}</span>}</span>
                 </div>
                 <div style={{height:8,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:(g.color||C.accent),borderRadius:999,transition:"width 0.6s cubic-bezier(0.4, 0, 0.2, 1)"}}/></div>
                 {isOpen&&(
@@ -1017,15 +1017,15 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                             ):(
                               <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
                             )}
-                            <button title="Promote to goal" onClick={()=>promoteSubToGoal(s,g)} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>↗</button>
+                            <button title="Promote to goal" onClick={()=>promoteSubToGoal(s,g)} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><ArrowUpRight size={13} strokeWidth={2}/></button>
                             <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                           </div>
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,paddingLeft:"calc(22px + 8px)"}}>
                             <div style={{display:"flex",alignItems:"center",gap:10,fontSize:11,color:C.muted,flexWrap:"wrap"}}>
-                              <button className="badge glass-card-sm" aria-label={`Toggle date range picker for ${s.title}`} aria-expanded={!!openSubDates[s.id]} onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,padding:"2px 8px",background:C.inputBg,cursor:"pointer"}}>📅 {formatDateRange(s.start_date,s.due_date)}</button>
-                              {s.assignee&&<span>👤 {s.assignee}</span>}
+                              <button className="badge glass-card-sm" aria-label={`Toggle date range picker for ${s.title}`} aria-expanded={!!openSubDates[s.id]} onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,padding:"2px 8px",background:C.inputBg,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={11} strokeWidth={2}/>{formatDateRange(s.start_date,s.due_date)}</button>
+                              {s.assignee&&<span style={{display:"inline-flex",alignItems:"center",gap:4}}><User size={11} strokeWidth={2}/>{s.assignee}</span>}
                             </div>
-                            <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,flexShrink:0}}>💬</button>
+                            <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><MessageSquare size={13} strokeWidth={2}/></button>
                           </div>
                           {openSubDates[s.id]&&(
                             <div style={{display:"flex",gap:8,paddingLeft:"calc(22px + 8px)",marginTop:2,flexWrap:"wrap"}}>
@@ -1055,8 +1055,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                     <div className="section-label" style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:C.faint,marginTop:8,marginBottom:6}}>Milestones</div>
                     {goalMilestones(g.id).map(m=>(
                       <div key={m.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                        <span style={{fontSize:12,color:C.text,flex:1}}>◆ {m.title} {formatDueDate(m.date)}</span>
-                        <button onClick={()=>startMilestoneEdit(m)} style={{border:"none",background:"transparent",cursor:"pointer",color:C.muted}}>✎</button>
+                        <span style={{fontSize:12,color:C.text,flex:1,display:"inline-flex",alignItems:"center",gap:4}}><Milestone size={12} strokeWidth={2}/>{m.title} {formatDueDate(m.date)}</span>
+                        <button onClick={()=>startMilestoneEdit(m)} style={{border:"none",background:"transparent",cursor:"pointer",color:C.muted,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><Pencil size={13} strokeWidth={2}/></button>
                         <button onClick={()=>deleteMilestone(m.id)} style={{border:"none",background:"transparent",cursor:"pointer",color:C.faint}}>&times;</button>
                       </div>
                     ))}
@@ -1189,20 +1189,20 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                         className="glass-card card-hover"
                         style={{position:"relative",background:C.cardBg,border:`1px solid ${g.pinned?C.accent:(C.cardBorder||C.border)}`,boxShadow:C.cardShadow,borderRadius:12,padding:"14px 14px 12px",marginBottom:10,minHeight:180,cursor:isMobile?"pointer":"grab"}}
                       >
-                        {g.pinned&&<div style={{position:"absolute",right:8,top:8,fontSize:12,color:C.muted}}>📌</div>}
-                        <button title={g.pinned?"Unpin":"Pin"} onClick={(e)=>{e.stopPropagation();updateGoal(g.id,{pinned:!g.pinned});}} style={{position:"absolute",right:28,top:6,width:24,height:24,fontSize:12,color:C.muted,background:"transparent",border:"none",cursor:"pointer",zIndex:2}}>📌</button>
+                        {g.pinned&&<div style={{position:"absolute",right:8,top:8,fontSize:12,color:C.muted,display:"inline-flex",alignItems:"center"}}><Pin size={12} strokeWidth={2}/></div>}
+                        <button title={g.pinned?"Unpin":"Pin"} onClick={(e)=>{e.stopPropagation();updateGoal(g.id,{pinned:!g.pinned});}} style={{position:"absolute",right:28,top:6,width:24,height:24,fontSize:12,color:C.muted,background:"transparent",border:"none",cursor:"pointer",zIndex:2,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{g.pinned?<PinOff size={12} strokeWidth={2}/>:<Pin size={12} strokeWidth={2}/>}</button>
                         {blocked&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.04)",borderRadius:10,pointerEvents:"none"}}/>}
                         <div style={{height:6,borderRadius:999,background:g.color||GOAL_COLORS[0],marginBottom:12}}/>
                         <div style={{fontSize:16,fontWeight:500,color:C.text,marginBottom:10}}>{g.title}</div>
                         {g.description&&<div style={{fontSize:12,color:C.muted,marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{g.description}</div>}
                         <div style={{display:"inline-flex",alignItems:"center",fontSize:11,padding:"2px 8px",borderRadius:999,border:`1px solid ${tagTheme.color}55`,background:tagTheme.bg,color:tagTheme.color,marginBottom:4}}>{g.tag||"Other"}</div>
-                        <div style={{fontSize:12,color:priority.color,marginBottom:4}}>● {priority.label} priority</div>
-                        <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:8}}>📅 {formatDateRange(g.start_date,g.due_date)}</div>
+                        <div style={{fontSize:12,color:priority.color,marginBottom:4,display:"inline-flex",alignItems:"center",gap:4}}><Flag size={12} strokeWidth={2}/>{priority.label} priority</div>
+                        <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:8,display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={12} strokeWidth={2}/>{formatDateRange(g.start_date,g.due_date)}</div>
                         <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:7}}><div style={{height:"100%",width:`${pct}%`,background:g.color||C.accent}}/></div>
-                        <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{done}/{subItems.length||0} • ⏱ {(effortByValue[Number(g.effort||0)]||"").split(" ")[0]}{(g.manual_progress??-1)>=0?" • M":""}</div>
-                        {dep&&blocked&&<div style={{fontSize:11,color:C.danger,marginBottom:4}}>🔒 Blocked by {dep.title}</div>}
-                        {dep&&!blocked&&<div style={{fontSize:11,color:C.done,marginBottom:4}}>✓ Dependency met</div>}
-                        {subItems.slice(0,3).map(s=><div key={s.id} aria-label={`${s.title} ${s.done?"done":"not done"}`} style={{fontSize:11,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",marginBottom:2}}>{s.done?"☑":"☐"} {s.title}</div>)}
+                        <div style={{fontSize:11,color:C.muted,marginBottom:4,display:"inline-flex",alignItems:"center",gap:4}}>{done}/{subItems.length||0} • <Clock size={11} strokeWidth={2}/> {(effortByValue[Number(g.effort||0)]||"").split(" ")[0]}{(g.manual_progress??-1)>=0?" • M":""}</div>
+                        {dep&&blocked&&<div style={{fontSize:11,color:C.danger,marginBottom:4,display:"inline-flex",alignItems:"center",gap:4}}><Lock size={11} strokeWidth={2}/>Blocked by {dep.title}</div>}
+                        {dep&&!blocked&&<div style={{fontSize:11,color:C.done,marginBottom:4,display:"inline-flex",alignItems:"center",gap:4}}><Check size={11} strokeWidth={2}/>Dependency met</div>}
+                        {subItems.slice(0,3).map(s=><div key={s.id} aria-label={`${s.title} ${s.done?"done":"not done"}`} style={{fontSize:11,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",marginBottom:2,display:"inline-flex",alignItems:"center",gap:4}}>{s.done?<CheckSquare size={11} strokeWidth={2}/>:<Square size={11} strokeWidth={2}/>} {s.title}</div>)}
                         <select value={g.status||"not_started"} onChange={e=>updateGoal(g.id,{status:e.target.value})} onClick={e=>e.stopPropagation()} style={{marginTop:8,width:"100%",height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 8px",fontSize:12,background:C.inputBg,color:C.text}}>
                           {STATUSES.map(opt=><option key={opt.id} value={opt.id}>{opt.label}</option>)}
                         </select>
@@ -1264,12 +1264,12 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
             {goalProgress(selectedGoal.id).items.map(s=>(
               <div key={s.id} style={{marginBottom:6}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <button onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer"}}>{s.done?"✓":""}</button>
+                  <button onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{s.done?<Check size={12} strokeWidth={2.4}/>:null}</button>
                   <span style={{flex:1,fontSize:12,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none"}}>{s.title}</span>
                   <button className="badge glass-card-sm" aria-label={`Toggle date range picker for ${s.title}`} aria-expanded={!!openSubDates[s.id]} onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:C.muted,border:`1px solid ${C.border}`,background:C.inputBg,cursor:"pointer"}}>{formatDateRange(s.start_date,s.due_date)}</button>
                   <input value={s.assignee||""} onChange={e=>updateSub(s.id,{assignee:e.target.value})} placeholder="Assignee" style={{width:90,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/>
-                  <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>💬</button>
-                  <button onClick={()=>promoteSubToGoal(s,selectedGoal)} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>↗</button>
+                  <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><MessageSquare size={12} strokeWidth={2}/></button>
+                  <button onClick={()=>promoteSubToGoal(s,selectedGoal)} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><ArrowUpRight size={12} strokeWidth={2}/></button>
                 </div>
                 {openSubNote[s.id]&&<textarea aria-label={`Subtask note for ${s.title}`} rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} style={{marginTop:4,width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.text,background:C.inputBg}}/>}
                 {openSubDates[s.id]&&(
@@ -1289,8 +1289,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
             <div style={{fontSize:12,color:C.muted,marginTop:10,marginBottom:6}}>Milestones</div>
             {goalMilestones(selectedGoal.id).map(m=>(
               <div key={m.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                <span style={{fontSize:12,color:C.text,flex:1}}>◆ {m.title} {formatDueDate(m.date)}</span>
-                <button onClick={()=>startMilestoneEdit(m)} style={{border:"none",background:"transparent",cursor:"pointer",color:C.muted}}>✎</button>
+                <span style={{fontSize:12,color:C.text,flex:1,display:"inline-flex",alignItems:"center",gap:4}}><Milestone size={12} strokeWidth={2}/>{m.title} {formatDueDate(m.date)}</span>
+                <button onClick={()=>startMilestoneEdit(m)} style={{border:"none",background:"transparent",cursor:"pointer",color:C.muted,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><Pencil size={13} strokeWidth={2}/></button>
                 <button onClick={()=>deleteMilestone(m.id)} style={{border:"none",background:"transparent",cursor:"pointer",color:C.faint}}>&times;</button>
               </div>
             ))}
