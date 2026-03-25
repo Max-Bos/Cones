@@ -77,6 +77,7 @@ function App() {
 
   const currentPageLabel = nav.find(n=>n.id===page)?.label ?? "";
   const initials = user.email ? user.email[0].toUpperCase() : "?";
+  const pageVisibility=(id)=>({hidden:page!==id,"aria-hidden":page!==id?"true":"false"});
 
   return (
     <div style={{background:C.bg,minHeight:"100vh",display:"flex","--accent":C.accent,"--accent-glow":C.accentGlow,"--placeholder":C.muted,"--scroll-thumb":C.accentGlow}}>
@@ -124,12 +125,12 @@ function App() {
 
         {/* Page content */}
         <div className="content-area" data-page={page} data-goals-view={goalsView}>
-          {(page==="today"||visitedPages.today)&&<div style={{display:page==="today"?"block":"none"}}><TodayPage habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/></div>}
-          {(page==="habits"||visitedPages.habits)&&<div style={{display:page==="habits"?"block":"none"}}><HabitsPage habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/></div>}
-          {(page==="goals"||visitedPages.goals)&&<div style={{display:page==="goals"?"block":"none"}}><GoalsPage userId={user.id} habits={habits} completions={completions} onViewChange={setGoalsView} C={C}/></div>}
-          {(page==="notes"||visitedPages.notes)&&<div style={{display:page==="notes"?"block":"none"}}><NotesPage userId={user.id} C={C}/></div>}
-          {(page==="overview"||visitedPages.overview)&&<div style={{display:page==="overview"?"block":"none"}}><OverviewPage habits={habits} completions={completions} userId={user.id} C={C}/></div>}
-          {(page==="settings"||visitedPages.settings)&&<div style={{display:page==="settings"?"block":"none"}}><SettingsPage user={user} C={C} dark={dark} setDark={setDark} reminder={reminder} setReminder={setReminder} onSignOut={signOut}/></div>}
+          {(page==="today"||visitedPages.today)&&<div {...pageVisibility("today")}><TodayPage habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/></div>}
+          {(page==="habits"||visitedPages.habits)&&<div {...pageVisibility("habits")}><HabitsPage habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/></div>}
+          {(page==="goals"||visitedPages.goals)&&<div {...pageVisibility("goals")}><GoalsPage userId={user.id} habits={habits} completions={completions} onViewChange={setGoalsView} C={C}/></div>}
+          {(page==="notes"||visitedPages.notes)&&<div {...pageVisibility("notes")}><NotesPage userId={user.id} C={C}/></div>}
+          {(page==="overview"||visitedPages.overview)&&<div {...pageVisibility("overview")}><OverviewPage habits={habits} completions={completions} userId={user.id} C={C}/></div>}
+          {(page==="settings"||visitedPages.settings)&&<div {...pageVisibility("settings")}><SettingsPage user={user} C={C} dark={dark} setDark={setDark} reminder={reminder} setReminder={setReminder} onSignOut={signOut}/></div>}
         </div>
       </div>
 
