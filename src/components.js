@@ -3,7 +3,7 @@ function Spinner({C}) {
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh"}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         {[0,1,2].map(i=>(
-          <span key={i} style={{width:10,height:10,borderRadius:"50%",background:C.accent,animation:`dotPulse 0.9s ease ${i*0.14}s infinite`}}/>
+          <span key={i} style={{width:10,height:10,borderRadius:"50%",background:i===1?C.sun:C.accent,animation:`dotPulse 0.9s ease ${i*0.14}s infinite`}}/>
         ))}
       </div>
     </div>
@@ -20,9 +20,10 @@ function NavItem({icon,label,active,onClick,C,mobile}) {
         background:"none",
         color:active?C.accent:C.muted,fontSize:10,fontWeight:active?500:400,
         cursor:"pointer",flex:1,
-        borderBottom:active?`2px solid ${C.accent}`:"2px solid transparent",
         transition:"all 0.15s ease",
+        position:"relative",
       }}>
+        {active&&<span style={{position:"absolute",top:2,width:6,height:6,borderRadius:"50%",background:C.accent}}/>}
         <span style={{fontSize:20}}>{icon}</span>{label}
       </button>
     );
@@ -36,13 +37,13 @@ function NavItem({icon,label,active,onClick,C,mobile}) {
         padding:"12px 16px",
         borderRadius:999,border:"none",
         boxShadow:active?`inset 3px 0 0 ${C.accent}`:"none",
-        background:(active||hover)?C.hoverBg:"transparent",
+        background:active?C.accentBg:(hover?C.hoverBg:"transparent"),
         color:active?C.accent:hover?C.text:C.muted,
         fontSize:14,fontWeight:active?500:400,
         cursor:"pointer",width:"100%",textAlign:"left",
         transition:"all 0.15s ease",
       }}>
-      <span style={{fontSize:16}}>{icon}</span>{label}
+      <span style={{fontSize:16,color:active?C.accent:C.muted}}>{active?"●":"○"}</span>{label}
     </button>
   );
 }
@@ -59,7 +60,7 @@ function RichEditor({value,onChange,placeholder,C}) {
   const exec=(cmd,val)=>{ document.execCommand(cmd,false,val); ref.current.focus(); };
   const tools=[{label:"B",cmd:"bold",s:{fontWeight:700}},{label:"I",cmd:"italic",s:{fontStyle:"italic"}},{label:"H",cmd:"formatBlock",val:"h3",s:{fontWeight:600}},{label:"•",cmd:"insertUnorderedList",s:{}}];
   return (
-    <div style={{border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",background:C.cardBg}}>
+    <div className="glass-card-sm" style={{borderRadius:12,overflow:"hidden"}}>
       <div style={{display:"flex",gap:8,padding:"10px 12px",borderBottom:`1px solid ${C.border}`,background:C.surface}}>
         {tools.map(t=><button key={t.cmd} onMouseDown={e=>{e.preventDefault();exec(t.cmd,t.val);}} style={{...t.s,width:32,height:32,border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,background:C.inputBg,color:C.text,cursor:"pointer",transition:"all 0.15s ease"}}>{t.label}</button>)}
       </div>

@@ -52,7 +52,7 @@ function AuthPage({C}) {
     setLoading(false);
   };
 
-  const inp={width:"100%",height:42,border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 16px",fontSize:14,background:C.inputBg,color:C.text,marginBottom:12,outline:"none",boxShadow:"none"};
+  const inp={width:"100%",height:42,marginBottom:12};
 
   if(sent) return (
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem","--accent":C.accent,"--accent-glow":C.accentGlow}}>
@@ -65,12 +65,12 @@ function AuthPage({C}) {
   );
 
   return (
-    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem","--accent":C.accent,"--accent-glow":C.accentGlow}}>
-      <div style={{maxWidth:400,width:"100%"}}>
-        <h1 style={{fontSize:32,fontWeight:700,color:C.accent,letterSpacing:"-0.03em",marginBottom:6,textAlign:"center"}}>Cones</h1>
-        <p style={{fontSize:13,color:C.muted,textAlign:"center",marginBottom:32}}>Stay consistent, one cone at a time.</p>
-        <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:36}}>
-          <div style={{position:"relative",display:"flex",background:C.bg,borderRadius:10,padding:3,marginBottom:22,border:`1px solid ${C.border}`}}>
+    <div style={{minHeight:"100vh",background:C.bgGradient||C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+      <div style={{maxWidth:420,width:"100%"}}>
+        <div className="glass-card fadein" style={{padding:36,backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)"}}>
+          <h1 style={{fontSize:32,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",marginBottom:6}}>🔺 Cones</h1>
+          <p style={{fontSize:14,color:C.muted,marginBottom:24}}>Stay consistent, one day at a time.</p>
+          <div className="glass-card-sm" style={{position:"relative",display:"flex",borderRadius:10,padding:3,marginBottom:22}}>
             <div style={{position:"absolute",top:3,bottom:3,left:mode==="login"?"3px":"calc(50% + 1px)",width:"calc(50% - 4px)",borderRadius:8,background:C.accent,transition:"all 0.2s ease"}}/>
             {["login","signup"].map(m=>(
               <button key={m} onClick={()=>{setMode(m);setError("");}} style={{position:"relative",zIndex:1,flex:1,border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:500,background:"transparent",color:mode===m?C.onAccent:C.muted,cursor:"pointer"}}>
@@ -81,7 +81,7 @@ function AuthPage({C}) {
           <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={inp}/>
           <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{...inp,marginBottom:18}}/>
           {error&&<p style={{fontSize:12,color:C.danger,marginBottom:12,marginTop:-6}}>{error}</p>}
-          <button onClick={submit} disabled={loading} style={{width:"100%",border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 20px",fontSize:14,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer",opacity:loading?0.7:1}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
+          <button className="btn-primary" onClick={submit} disabled={loading} style={{width:"100%",opacity:loading?0.7:1}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
             {loading?"...":(mode==="login"?"Sign in":"Create account")}
           </button>
         </div>
@@ -203,7 +203,7 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
         const linkedLabel=`${linkedCount} linked goal${linkedCount===1?"":"s"}`;
         const linkedBadgeText=`🔗 ${linkedCount}${pingCount>0?` +${pingCount}`:""}`;
         return (
-          <div key={h.id} style={{background:done?C.successBg:C.cardBg,border:`1px solid ${done?C.done:C.border}`,borderRadius:12,padding:"18px 20px",marginBottom:12,position:"relative",transition:"all 0.3s ease",boxShadow:`inset 4px 0 0 ${tagAccentColor}`}}>
+          <div key={h.id} className="glass-card card-hover" style={{background:done?C.successBg:C.cardBg,border:`1px solid ${done?C.done:(C.cardBorder||C.border)}`,borderRadius:16,padding:"18px 20px",marginBottom:12,position:"relative",transition:"all 0.3s ease",boxShadow:`inset 5px 0 0 ${tagAccentColor}, ${C.cardShadow}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div onClick={()=>toggle(h.id)} aria-label={`Mark ${h.name} as ${done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${done?C.done:C.border}`,background:done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s ease",transform:done?"scale(1.06)":"scale(1)"}}>
                 {done&&<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7.5L10 1" stroke={C.onAccent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -235,8 +235,8 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
             <span>{doneToday} of {habits.length} done</span>
             <span style={{fontWeight:500,color:pct===100?C.done:C.accent}}>{pct}%</span>
           </div>
-          <div style={{height:8,borderRadius:999,background:C.border,overflow:"hidden"}}>
-            <div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:C.accent,borderRadius:999,transition:"width 0.6s cubic-bezier(0.4, 0, 0.2, 1)",animation:pct===100?"progressPulse 0.8s ease 1":"none"}}/>
+          <div className="progress-track" style={{background:C.borderSolid||C.border}}>
+            <div className={`progress-fill ${pct===100?"done":""}`} style={{width:`${pct}%`,background:pct===100?undefined:(`linear-gradient(90deg, ${C.accent}, ${C.accentLight||C.accent})`),animation:pct===100?"progressPulse 0.8s ease 1":"none"}}/>
           </div>
           {pct===100&&<p style={{fontSize:13,color:C.done,marginTop:8,fontWeight:500}}>All done for today ✓</p>}
         </div>
@@ -312,7 +312,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
             {group.map(h=>{
               const streak=computeStreak(h.id,completions); const longest=computeLongest(h.id,completions);
               return (
-                <div key={h.id} draggable={true} onDragStart={()=>setDragId(h.id)} onDragOver={e=>{e.preventDefault();setDragOverId(h.id);}} onDragLeave={()=>dragOverId===h.id&&setDragOverId(null)} onDrop={e=>{e.preventDefault();onDrop(h.id);}} onDragEnd={()=>{setDragId(null);setDragOverId(null);}} style={{display:"flex",alignItems:"center",gap:10,background:C.cardBg,border:`1px solid ${dragOverId===h.id?C.accent:C.border}`,borderRadius:12,padding:"15px 16px",marginBottom:8,boxShadow:`inset 4px 0 0 ${tagTheme.color}`}}>
+                <div key={h.id} className="glass-card card-hover" draggable={true} onDragStart={()=>setDragId(h.id)} onDragOver={e=>{e.preventDefault();setDragOverId(h.id);}} onDragLeave={()=>dragOverId===h.id&&setDragOverId(null)} onDrop={e=>{e.preventDefault();onDrop(h.id);}} onDragEnd={()=>{setDragId(null);setDragOverId(null);}} style={{display:"flex",alignItems:"center",gap:10,background:C.cardBg,border:`1px solid ${dragOverId===h.id?C.accent:(C.cardBorder||C.border)}`,borderRadius:16,padding:"15px 16px",marginBottom:8,boxShadow:`inset 5px 0 0 ${tagTheme.color}, ${C.cardShadow}`}}>
                   <span style={{fontSize:16,color:C.faint,cursor:"grab",userSelect:"none"}}>⠿</span>
                   {editingId===h.id?(
                     <input value={editVal} autoFocus onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();saveEdit(h.id);} if(e.key==="Escape"){e.preventDefault();cancelEdit();}}} onBlur={()=>onEditBlur(h.id)}
@@ -358,6 +358,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const [editingSubId,setEditingSubId]=useState(null);
   const [editingSubVal,setEditingSubVal]=useState("");
   const [openSubNote,setOpenSubNote]=useState({});
+  const [openSubDates,setOpenSubDates]=useState({});
   const [openColorId,setOpenColorId]=useState(null);
   const [dragGoalId,setDragGoalId]=useState(null);
   const [boardDraggingId,setBoardDraggingId]=useState(null);
@@ -457,6 +458,14 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     return "No dates";
   };
   const isValidDateRange=(start,end)=>!start||!end||start<=end;
+  const cardStyle={
+    background:C.cardBg,
+    border:`1px solid ${C.cardBorder||C.border}`,
+    boxShadow:C.cardShadow,
+    backdropFilter:"blur(12px)",
+    WebkitBackdropFilter:"blur(12px)",
+    borderRadius:16,
+  };
   const goalById=Object.fromEntries(goals.map(g=>[g.id,g]));
   const depGoal=(goal)=>goal?.depends_on?goalById[goal.depends_on]:null;
   const depBlocked=(goal)=>{
@@ -743,7 +752,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     const goalStartDate=g.start_date?new Date(`${g.start_date}T00:00:00`):new Date(g.created_at);
     const start=getRoadmapPosition(goalStartDate,minDate,totalDays,containerWidth);
     const fallbackEnd=getRoadmapPosition(new Date(goalStartDate.getTime()+30*MS_PER_DAY),minDate,totalDays,containerWidth);
-    const due=g.due_date?new Date(g.due_date):null;
+    const due=g.due_date?new Date(`${g.due_date}T00:00:00`):null;
     const end=due?getRoadmapPosition(due,minDate,totalDays,containerWidth):fallbackEnd;
     const barWidth=Math.max(28,end-start);
     const top=acc.top;
@@ -773,7 +782,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     if(roadmapExpanded[g.id]!==false){
       subItems.forEach(s=>{
         const subStart=s.start_date?getRoadmapPosition(new Date(`${s.start_date}T00:00:00`),minDate,totalDays,containerWidth):start;
-        const subEnd=s.due_date?getRoadmapPosition(new Date(s.due_date),minDate,totalDays,containerWidth):end;
+        const subEnd=s.due_date?getRoadmapPosition(new Date(`${s.due_date}T00:00:00`),minDate,totalDays,containerWidth):end;
         const subWidth=Math.max(18,subEnd-subStart);
         acc.nodes.push(
           <div key={`sub_${s.id}`}>
@@ -919,7 +928,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                 return (
               <React.Fragment key={g.id}>
               {!g.pinned&&idx>0&&group.items[idx-1].pinned&&<div style={{height:1,background:C.rowDivider,margin:"6px 0 12px"}}/>}
-              <div className={blocked?"blocked-goal-card":""} style={{position:"relative",background:C.cardBg,border:`1px solid ${g.pinned?C.accent:C.border}`,borderRadius:12,padding:"20px 24px",marginBottom:14,boxShadow:`inset 6px 0 0 ${g.color||GOAL_COLORS[0]}`}}>
+              <div className={`glass-card card-hover ${blocked?"blocked-goal-card":""}`} style={{...cardStyle,position:"relative",border:`1px solid ${g.pinned?C.accent:(C.cardBorder||C.border)}`,padding:"20px 24px",marginBottom:14,boxShadow:`inset 5px 0 0 ${g.color||GOAL_COLORS[0]}, ${C.cardShadow}`}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                   <button aria-label={`Choose color for ${g.title}`} aria-expanded={openColorId===g.id} onClick={()=>setOpenColorId(openColorId===g.id?null:g.id)} style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${C.border}`,background:g.color||GOAL_COLORS[0],cursor:"pointer"}}/>
                   {editingGoalId===g.id?(
@@ -1011,11 +1020,21 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                           </div>
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,paddingLeft:"calc(22px + 8px)"}}>
                             <div style={{display:"flex",alignItems:"center",gap:10,fontSize:11,color:C.muted,flexWrap:"wrap"}}>
-                              <span style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,borderRadius:999,padding:"2px 8px",background:C.inputBg}}>📅 {formatDateRange(s.start_date,s.due_date)}</span>
+                              <button className="badge glass-card-sm" onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,padding:"2px 8px",background:C.inputBg,cursor:"pointer"}}>📅 {formatDateRange(s.start_date,s.due_date)}</button>
                               {s.assignee&&<span>👤 {s.assignee}</span>}
                             </div>
                             <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,flexShrink:0}}>💬</button>
                           </div>
+                          {openSubDates[s.id]&&(
+                            <div style={{display:"flex",gap:8,paddingLeft:"calc(22px + 8px)",marginTop:2,flexWrap:"wrap"}}>
+                              <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>Start
+                                <input type="date" value={s.start_date||""} onChange={e=>updateSub(s.id,{start_date:e.target.value||null})} style={{marginLeft:4,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/>
+                              </label>
+                              <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>End
+                                <input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{marginLeft:4,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/>
+                              </label>
+                            </div>
+                          )}
                         </div>
                         {openSubNote[s.id]&&(
                           <textarea aria-label={`Subtask note for ${s.title}`} rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} placeholder="Subtask note..."
@@ -1165,7 +1184,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                           if(e.key==="ArrowLeft"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",-1)}); }
                         }}
                         aria-label={`${g.title}. Current status: ${(statusById[g.status]||statusById.not_started).label}. Use left and right arrows to change status.`}
-                        style={{position:"relative",background:C.cardBg,border:`1px solid ${g.pinned?C.accent:C.border}`,borderRadius:10,padding:"14px 14px 12px",marginBottom:10,minHeight:180,cursor:isMobile?"pointer":"grab"}}
+                        className="glass-card card-hover"
+                        style={{position:"relative",background:C.cardBg,border:`1px solid ${g.pinned?C.accent:(C.cardBorder||C.border)}`,boxShadow:C.cardShadow,borderRadius:12,padding:"14px 14px 12px",marginBottom:10,minHeight:180,cursor:isMobile?"pointer":"grab"}}
                       >
                         {g.pinned&&<div style={{position:"absolute",right:8,top:8,fontSize:12,color:C.muted}}>📌</div>}
                         <button title={g.pinned?"Unpin":"Pin"} onClick={(e)=>{e.stopPropagation();updateGoal(g.id,{pinned:!g.pinned});}} style={{position:"absolute",right:28,top:6,width:24,height:24,fontSize:12,color:C.muted,background:"transparent",border:"none",cursor:"pointer",zIndex:2}}>📌</button>
@@ -1198,7 +1218,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
 
       {selectedGoal&&(
         <div style={{position:"fixed",inset:0,zIndex:110,background:isMobile?"rgba(0,0,0,0.4)":"transparent"}}>
-          <div ref={panelRef} style={{position:"absolute",right:0,top:0,bottom:0,width:isMobile?"100%":320,background:C.cardBg,borderLeft:`1px solid ${C.border}`,padding:"16px 14px",overflowY:"auto"}}>
+          <div ref={panelRef} className="glass-card" style={{position:"absolute",right:0,top:0,bottom:0,width:isMobile?"100%":320,background:C.cardBg,borderLeft:`1px solid ${C.border}`,padding:"16px 14px",overflowY:"auto",borderRadius:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
               <button onClick={()=>setSelectedGoalId(null)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text,cursor:"pointer"}}>← Back</button>
               <span style={{fontSize:15,fontWeight:600,color:C.text,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedGoal.title}</span>
@@ -1244,14 +1264,18 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <button onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer"}}>{s.done?"✓":""}</button>
                   <span style={{flex:1,fontSize:12,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none"}}>{s.title}</span>
-                  <span style={{fontSize:11,color:C.muted,border:`1px solid ${C.border}`,borderRadius:999,padding:"2px 8px",background:C.inputBg}}>{formatDateRange(s.start_date,s.due_date)}</span>
-                  <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>Start<input type="date" value={s.start_date||""} onChange={e=>updateSub(s.id,{start_date:e.target.value||null})} style={{marginLeft:4,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/></label>
-                  <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>End<input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{marginLeft:4,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/></label>
+                  <button className="badge glass-card-sm" onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:C.muted,border:`1px solid ${C.border}`,background:C.inputBg,cursor:"pointer"}}>{formatDateRange(s.start_date,s.due_date)}</button>
                   <input value={s.assignee||""} onChange={e=>updateSub(s.id,{assignee:e.target.value})} placeholder="Assignee" style={{width:90,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/>
                   <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>💬</button>
                   <button onClick={()=>promoteSubToGoal(s,selectedGoal)} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>↗</button>
                 </div>
                 {openSubNote[s.id]&&<textarea aria-label={`Subtask note for ${s.title}`} rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} style={{marginTop:4,width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.text,background:C.inputBg}}/>}
+                {openSubDates[s.id]&&(
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:4,paddingLeft:26}}>
+                    <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>Start<input type="date" value={s.start_date||""} onChange={e=>updateSub(s.id,{start_date:e.target.value||null})} style={{marginLeft:4,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/></label>
+                    <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>End<input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{marginLeft:4,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/></label>
+                  </div>
+                )}
               </div>
             ))}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
@@ -1375,7 +1399,7 @@ function NotesPage({userId,C}) {
               <EmptyState C={C} title="No notes yet" message="Create your first note and start writing."/>
             )}
             {notes.map(n=>(
-              <div key={n.id} onClick={()=>openNote(n.id)} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+             <div key={n.id} className="glass-card card-hover" onClick={()=>openNote(n.id)} style={{background:C.cardBg,border:`1px solid ${C.cardBorder||C.border}`,borderRadius:16,padding:"16px 18px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:14,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{n.title||"Untitled"}</div>
                   <div style={{fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{notePreviews[n.id]}</div>
@@ -1490,7 +1514,7 @@ function OverviewPage({habits,completions,userId,C}) {
       <h2 className="page-heading" style={{fontSize:24,fontWeight:600,letterSpacing:"-0.02em",color:C.text,marginBottom:"2.2rem"}}>Overview</h2>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12,marginBottom:"2.2rem"}}>
         {[{label:"Global streak",value:`${globalStreak}d`},{label:"Total habits",value:habits.length},{label:"Done (90d)",value:totalDone},{label:"Total effort this month",value:`${goalStats.label} (${goalStats.pts} pts across ${goalStats.count} goals)`}].map(s=>(
-          <div key={s.label} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px 16px"}}>
+          <div key={s.label} className="glass-card" style={{background:C.cardBg,border:`1px solid ${C.cardBorder||C.border}`,borderRadius:16,padding:"14px 16px"}}>
             <div className="section-label" style={{color:C.faint,marginBottom:4}}>{s.label}</div>
             <div style={{fontSize:s.label==="Total effort this month"?14:22,fontWeight:500,color:C.accent}}>{s.value}</div>
           </div>
