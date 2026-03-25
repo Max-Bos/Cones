@@ -386,9 +386,10 @@ function GoalsPage({userId,habits,completions,C}) {
     const nextGoals=g||[];
     setGoals(nextGoals);
     setSubs(s||[]);
-    const defaultExpanded=Object.fromEntries(nextGoals.map(goal=>[goal.id,!window.matchMedia(MOBILE_QUERY).matches]));
+    const desktopDefault=!window.matchMedia(MOBILE_QUERY).matches;
+    const defaultExpanded=Object.fromEntries(nextGoals.map(goal=>[goal.id,desktopDefault]));
     setExpanded(defaultExpanded);
-    setRoadmapExpanded(Object.fromEntries(nextGoals.map(goal=>[goal.id,true])));
+    setRoadmapExpanded(prev=>Object.keys(prev).length?prev:Object.fromEntries(nextGoals.map(goal=>[goal.id,true])));
     setLoading(false);
   })();},[userId]);
 
@@ -434,7 +435,8 @@ function GoalsPage({userId,habits,completions,C}) {
     const linkedGoals=activeGoals.filter(g=>g.linked_habit_id);
     if(!linkedGoals.length) return;
     const today=todayKey();
-    const nextMessage=(completions||[]).find(c=>c.date===today&&!seenCompletionIds.current.has(c.id)&&linkedGoals.some(g=>g.linked_habit_id===c.habit_id));
+    const linkedHabitIds=new Set(linkedGoals.map(g=>g.linked_habit_id));
+    const nextMessage=(completions||[]).find(c=>c.date===today&&!seenCompletionIds.current.has(c.id)&&linkedHabitIds.has(c.habit_id));
     if(!nextMessage) return;
     seenCompletionIds.current.add(nextMessage.id);
     const linkedGoal=linkedGoals.find(g=>g.linked_habit_id===nextMessage.habit_id);
@@ -588,7 +590,7 @@ function GoalsPage({userId,habits,completions,C}) {
     const top=acc.top;
     acc.nodes.push(
       <div key={`goal_${g.id}`}>
-        <button onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted}}>{roadmapExpanded[g.id]!==false?"▼":"▶"}</button>
+        <button aria-label={roadmapExpanded[g.id]!==false?`Collapse ${g.title}`:`Expand ${g.title}`} onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted}}>{roadmapExpanded[g.id]!==false?"▼":"▶"}</button>
         <div style={{position:"absolute",left:-164,top:top+10,width:160,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
         <div title={`${g.title} • Due ${g.due_date||"none"} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap"}}>
           {g.title}
@@ -696,18 +698,18 @@ function GoalsPage({userId,habits,completions,C}) {
             return (
               <div key={g.id} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px 24px",marginBottom:14,boxShadow:`inset 6px 0 0 ${g.color||GOAL_COLORS[0]}`}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-                  <button onClick={()=>setOpenColorId(openColorId===g.id?null:g.id)} style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${C.border}`,background:g.color||GOAL_COLORS[0],cursor:"pointer"}}/>
+                  <button aria-label={`Choose color for ${g.title}`} aria-expanded={openColorId===g.id} onClick={()=>setOpenColorId(openColorId===g.id?null:g.id)} style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${C.border}`,background:g.color||GOAL_COLORS[0],cursor:"pointer"}}/>
                   {editingGoalId===g.id?(
                     <input value={editingGoalVal} autoFocus onChange={e=>setEditingGoalVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveGoalEdit(g.id); if(e.key==="Escape"){setEditingGoalId(null);setEditingGoalVal("");}}} onBlur={()=>saveGoalEdit(g.id)}
                       style={{flex:1,minWidth:160,height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:16,fontWeight:500,background:C.inputBg,color:C.text}}/>
                   ):(
                     <span style={{flex:1,fontSize:16,fontWeight:500,color:C.text}}>{g.title}</span>
                   )}
-                  <button onClick={()=>startGoalEdit(g)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>✎</button>
+                  <button aria-label={`Edit goal ${g.title}`} onClick={()=>startGoalEdit(g)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>✎</button>
                   <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{width:32,height:32,fontSize:11,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
                   {isMobile&&<button onClick={()=>setSelectedGoalId(g.id)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:C.text,cursor:"pointer"}}>Open</button>}
                   {pct===100&&<button onClick={()=>updateGoal(g.id,{archived:true})} style={{fontSize:12,color:C.accent,background:C.inputBg,border:`1px solid ${C.accent}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Archive</button>}
-                  <button onClick={()=>delGoal(g.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
+                  <button aria-label={`Delete goal ${g.title}`} onClick={()=>delGoal(g.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                 </div>
                 {openColorId===g.id&&(
                   <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
@@ -755,7 +757,7 @@ function GoalsPage({userId,habits,completions,C}) {
                           <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                         </div>
                         {openSubNote[s.id]&&(
-                          <textarea rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} placeholder="Subtask note..."
+                          <textarea aria-label={`Subtask note for ${s.title}`} rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} placeholder="Subtask note..."
                             style={{marginTop:6,marginLeft:38,width:"calc(100% - 38px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.text,background:C.inputBg,lineHeight:1.4}}/>
                         )}
                       </div>
@@ -889,7 +891,7 @@ function GoalsPage({userId,habits,completions,C}) {
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
               <button onClick={()=>setSelectedGoalId(null)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text,cursor:"pointer"}}>← Back</button>
               <span style={{fontSize:15,fontWeight:600,color:C.text,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedGoal.title}</span>
-              <button onClick={()=>delGoal(selectedGoal.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer"}}>&times;</button>
+              <button aria-label={`Delete goal ${selectedGoal.title}`} onClick={()=>delGoal(selectedGoal.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer"}}>&times;</button>
             </div>
             <div style={{display:"grid",gap:8,marginBottom:12}}>
               <select value={selectedGoal.status||"not_started"} onChange={e=>updateGoalDebounced(selectedGoal.id,{status:e.target.value})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text}}>{STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
@@ -916,7 +918,7 @@ function GoalsPage({userId,habits,completions,C}) {
                   <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>{s.due_date?formatDueDate(s.due_date):"No date"}<input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{opacity:0,width:0,height:0,padding:0,border:"none"}}/></label>
                   <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>💬</button>
                 </div>
-                {openSubNote[s.id]&&<textarea rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} style={{marginTop:4,width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.text,background:C.inputBg}}/>}
+                {openSubNote[s.id]&&<textarea aria-label={`Subtask note for ${s.title}`} rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} style={{marginTop:4,width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.text,background:C.inputBg}}/>}
               </div>
             ))}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
