@@ -4,6 +4,7 @@ const LucideSource =
   || (typeof window !== "undefined" && (window.LucideReact || window.lucideReact || window.lucide))
   || {};
 const Lucide = LucideSource.icons || LucideSource.default || LucideSource;
+// Lucide UMD builds expose components with different key shapes across versions.
 function pickLucideIcon(name) {
   return Lucide[name] || Lucide[`${name}Icon`] || Lucide[`Lucide${name}`] || FallbackIcon;
 }
