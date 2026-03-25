@@ -995,7 +995,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                     <div className="section-label" style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:C.faint,marginBottom:8}}>Subtasks</div>
                     {items.map(s=>(
                       <div key={s.id} style={{padding:"7px 0"}}>
-                        <div style={{display:"grid",gap:4}}>
+                        <div style={{display:"grid",gridTemplateRows:"auto auto",gap:4}}>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
                             <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
                               {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -1009,9 +1009,9 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                             <button title="Promote to goal" onClick={()=>promoteSubToGoal(s,g)} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>↗</button>
                             <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                           </div>
-                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,paddingLeft:30}}>
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,paddingLeft:"calc(22px + 8px)"}}>
                             <div style={{display:"flex",alignItems:"center",gap:10,fontSize:11,color:C.muted,flexWrap:"wrap"}}>
-                              <span style={{color:isOverdue(s.due_date)?C.danger:C.muted}}>📅 {formatDateRange(s.start_date,s.due_date)}</span>
+                              <span style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,borderRadius:999,padding:"2px 8px",background:C.inputBg}}>📅 {formatDateRange(s.start_date,s.due_date)}</span>
                               {s.assignee&&<span>👤 {s.assignee}</span>}
                             </div>
                             <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,flexShrink:0}}>💬</button>
