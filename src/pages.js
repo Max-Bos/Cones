@@ -995,25 +995,27 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                     <div className="section-label" style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:C.faint,marginBottom:8}}>Subtasks</div>
                     {items.map(s=>(
                       <div key={s.id} style={{padding:"7px 0"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{width:8,height:8,borderRadius:"50%",background:s.done?C.done:C.accent,flexShrink:0}}/>
-                          <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                            {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        <div style={{display:"grid",gap:4}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                            </div>
+                            {editingSubId===s.id?(
+                              <input value={editingSubVal} autoFocus onChange={e=>setEditingSubVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveSubEdit(s.id); if(e.key==="Escape"){setEditingSubId(null);setEditingSubVal("");}}} onBlur={()=>saveSubEdit(s.id)}
+                                style={{flex:1,minWidth:120,height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,background:C.inputBg,color:C.text}}/>
+                            ):(
+                              <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
+                            )}
+                            <button title="Promote to goal" onClick={()=>promoteSubToGoal(s,g)} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>↗</button>
+                            <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                           </div>
-                          {editingSubId===s.id?(
-                            <input value={editingSubVal} autoFocus onChange={e=>setEditingSubVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveSubEdit(s.id); if(e.key==="Escape"){setEditingSubId(null);setEditingSubVal("");}}} onBlur={()=>saveSubEdit(s.id)}
-                              style={{flex:1,minWidth:120,height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,background:C.inputBg,color:C.text}}/>
-                          ):(
-                            <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
-                          )}
-                          <span style={{fontSize:11,color:C.muted,border:`1px solid ${C.border}`,borderRadius:999,padding:"2px 8px",background:C.inputBg}}>{formatDateRange(s.start_date,s.due_date)}</span>
-                          <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>Start<input type="date" value={s.start_date||""} onChange={e=>updateSub(s.id,{start_date:e.target.value||null})} style={{marginLeft:4,height:26,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/></label>
-                          <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>End<input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{marginLeft:4,height:26,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:isOverdue(s.due_date)?C.danger:C.text}}/></label>
-                          <input value={s.assignee||""} onChange={e=>updateSub(s.id,{assignee:e.target.value})} placeholder="Assignee" style={{width:100,height:26,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 8px",fontSize:11,background:C.inputBg,color:C.text}}/>
-                          {!!s.assignee&&<span style={{fontSize:11,color:C.muted,border:`1px solid ${C.border}`,borderRadius:999,padding:"2px 7px",background:C.inputBg}}>👤 {s.assignee}</span>}
-                          <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>💬</button>
-                          <button title="Promote to goal" onClick={()=>promoteSubToGoal(s,g)} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>↗</button>
-                          <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,paddingLeft:30}}>
+                            <div style={{display:"flex",alignItems:"center",gap:10,fontSize:11,color:C.muted,flexWrap:"wrap"}}>
+                              <span style={{color:isOverdue(s.due_date)?C.danger:C.muted}}>📅 {formatDateRange(s.start_date,s.due_date)}</span>
+                              {s.assignee&&<span>👤 {s.assignee}</span>}
+                            </div>
+                            <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,flexShrink:0}}>💬</button>
+                          </div>
                         </div>
                         {openSubNote[s.id]&&(
                           <textarea aria-label={`Subtask note for ${s.title}`} rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} placeholder="Subtask note..."
