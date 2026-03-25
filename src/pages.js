@@ -924,6 +924,13 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                 const priority=priorityById[g.priority]||priorityById.medium;
                 const linkedHabit=habitsById[g.linked_habit_id];
                 const linkedDone=isHabitDoneToday(g.linked_habit_id);
+                const linkedHabitMeta=linkedHabit?(
+                  <span style={{display:"inline-flex",alignItems:"center",gap:4,marginLeft:6}}>
+                    <Link2 size={12} strokeWidth={2}/>
+                    {linkedHabit.name} — {linkedDone?"done today":"not done yet"}
+                    {linkedDone&&<Check size={12} strokeWidth={2}/>}
+                  </span>
+                ):null;
                 const dep=depGoal(g);
                 const blocked=depBlocked(g);
                 const tagTheme=goalTagTheme(g.tag||"Other");
@@ -998,7 +1005,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                 {dep&&!blocked&&<div style={{fontSize:12,color:C.done,marginBottom:6,display:"inline-flex",alignItems:"center",gap:5}}><Check size={12} strokeWidth={2}/>Dependency met</div>}
                 <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:6,display:"inline-flex",alignItems:"center",gap:5}}><Calendar size={12} strokeWidth={2}/>{formatDateRange(g.start_date,g.due_date)}</div>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.muted,marginBottom:6}}>
-                  <span>{done}/{items.length||0} subtasks {linkedHabit&&<span style={{display:"inline-flex",alignItems:"center",gap:4,marginLeft:6}}><Link2 size={12} strokeWidth={2}/>{linkedHabit.name} — {linkedDone?"done today":"not done yet"}{linkedDone&&<Check size={12} strokeWidth={2}/>}</span>}</span>
+                  <span>{done}/{items.length||0} subtasks {linkedHabitMeta}</span>
                 </div>
                 <div style={{height:8,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:(g.color||C.accent),borderRadius:999,transition:"width 0.6s cubic-bezier(0.4, 0, 0.2, 1)"}}/></div>
                 {isOpen&&(
@@ -1264,7 +1271,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
             {goalProgress(selectedGoal.id).items.map(s=>(
               <div key={s.id} style={{marginBottom:6}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <button onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{s.done?<Check size={12} strokeWidth={2.4}/>:null}</button>
+                  <button aria-pressed={s.done} aria-label={s.done?`Subtask status: complete. Click to mark ${s.title} as incomplete`:`Subtask status: incomplete. Click to mark ${s.title} as complete`} onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{s.done?<Check size={12} strokeWidth={2.4}/>:null}</button>
                   <span style={{flex:1,fontSize:12,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none"}}>{s.title}</span>
                   <button className="badge glass-card-sm" aria-label={`Toggle date range picker for ${s.title}`} aria-expanded={!!openSubDates[s.id]} onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:C.muted,border:`1px solid ${C.border}`,background:C.inputBg,cursor:"pointer"}}>{formatDateRange(s.start_date,s.due_date)}</button>
                   <input value={s.assignee||""} onChange={e=>updateSub(s.id,{assignee:e.target.value})} placeholder="Assignee" style={{width:90,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/>
