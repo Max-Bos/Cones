@@ -17,11 +17,11 @@ if (window.location.hash && window.location.hash.includes("access_token")) {
 }
 
 const TAGS = [
-  { label:"Health", color:"#5A8A5A", bg:"#EDF5ED" },
-  { label:"Mind",   color:"#6B6BAA", bg:"#EEEEF8" },
-  { label:"Work",   color:"#C4884A", bg:"#FEF3E2" },
-  { label:"Social", color:"#C45A7A", bg:"#FCEEF3" },
-  { label:"Other",  color:"#8C7560", bg:"#F7F2EA" },
+  { label:"Health", key:"health" },
+  { label:"Mind",   key:"mind" },
+  { label:"Work",   key:"work" },
+  { label:"Social", key:"social" },
+  { label:"Other",  key:"other" },
 ];
 const LIGHT = {
   bg:"#FDFAF6", surface:"#F7F2EA", border:"#E8DFD0",
@@ -31,6 +31,23 @@ const LIGHT = {
   streakBg:"#FEF3E2", streakBorder:"#EAC98A",
   nav:"#F2EBE0", navBorder:"#E0D4C0", danger:"#C45A5A",
   sidebar:"#F2EBE0",
+  cardBg:"#FBF6EF",
+  inputBg:"#FFFCF8",
+  hoverBg:"#F3EBDD",
+  successBg:"#EDF5ED",
+  onAccent:"#FFF8F0",
+  dangerBg:"#FCECEC",
+  rowDivider:"#EDE3D4",
+  accentGlow:"#C4884A22",
+  tagBorderAlpha:"4D",
+  heat:["#EFE5D6","#F2D9B7","#E7BD86","#D79A5A","#C4884A"],
+  tags:{
+    health:{color:"#5A8A5A",bg:"#EDF5ED"},
+    mind:{color:"#6B6BAA",bg:"#EEEEF8"},
+    work:{color:"#C4884A",bg:"#FEF3E2"},
+    social:{color:"#C45A7A",bg:"#FCEEF3"},
+    other:{color:"#8C7560",bg:"#F7F2EA"},
+  },
 };
 const DARK = {
   bg:"#1A1410", surface:"#251E17", border:"#3A2E22",
@@ -39,7 +56,24 @@ const DARK = {
   done:"#7AAA7A", doneBg:"#1E2E1E",
   streakBg:"#2E2010", streakBorder:"#6A4A20",
   nav:"#201810", navBorder:"#3A2E22", danger:"#D47070",
-  sidebar:"#201810",
+  sidebar:"#1E1610",
+  cardBg:"#2B231B",
+  inputBg:"#2A221A",
+  hoverBg:"#32271D",
+  successBg:"#1E2E1E",
+  onAccent:"#1C130B",
+  dangerBg:"#3A1F1F",
+  rowDivider:"#433224",
+  accentGlow:"#D4985A22",
+  tagBorderAlpha:"4D",
+  heat:["#3A3128","#5A412A","#8A6135","#B67E46","#D4985A"],
+  tags:{
+    health:{color:"#7AAA7A",bg:"#263726"},
+    mind:{color:"#9A9AD6",bg:"#2A2A3F"},
+    work:{color:"#D4985A",bg:"#3A2A18"},
+    social:{color:"#D7829D",bg:"#3D2330"},
+    other:{color:"#B29A84",bg:"#30281F"},
+  },
 };
 
 const todayKey = () => new Date().toISOString().slice(0,10);
