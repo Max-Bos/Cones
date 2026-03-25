@@ -1,14 +1,34 @@
 const { useState, useEffect, useRef, useMemo } = React;
+const Lucide = (typeof LucideReact === "object" && LucideReact) ? LucideReact : {};
+function FallbackIcon({size=16,color="currentColor",strokeWidth=2,fill="none",...props}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={fill}
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden={!props["aria-label"]}
+      {...props}
+    >
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 2.5" />
+    </svg>
+  );
+}
 const {
-  Sun, CheckSquare, Target, FileText, BarChart2, Settings,
-  Flame, Link2, Pin, PinOff, Archive, ArchiveRestore,
-  Trash2, Pencil, ChevronDown, ChevronUp, ChevronRight,
-  ArrowUpRight, Plus, X, Check, Calendar, Clock, User,
-  AlertCircle, Lock, Flag, Milestone, GitBranch, Copy,
-  MessageSquare, MoreHorizontal, Triangle, Star, Zap,
-  TrendingUp, LayoutGrid, List, RefreshCw, Moon, SunMedium,
-  LogOut, Shield, Bell, Eye, EyeOff, GripVertical, Square,
-} = LucideReact;
+  Sun = FallbackIcon, CheckSquare = FallbackIcon, Target = FallbackIcon, FileText = FallbackIcon, BarChart2 = FallbackIcon, Settings = FallbackIcon,
+  Flame = FallbackIcon, Link2 = FallbackIcon, Pin = FallbackIcon, PinOff = FallbackIcon, Archive = FallbackIcon, ArchiveRestore = FallbackIcon,
+  Trash2 = FallbackIcon, Pencil = FallbackIcon, ChevronDown = FallbackIcon, ChevronUp = FallbackIcon, ChevronRight = FallbackIcon,
+  ArrowUpRight = FallbackIcon, Plus = FallbackIcon, X = FallbackIcon, Check = FallbackIcon, Calendar = FallbackIcon, Clock = FallbackIcon, User = FallbackIcon,
+  AlertCircle = FallbackIcon, Lock = FallbackIcon, Flag = FallbackIcon, Milestone = FallbackIcon, GitBranch = FallbackIcon, Copy = FallbackIcon,
+  MessageSquare = FallbackIcon, MoreHorizontal = FallbackIcon, Triangle = FallbackIcon, Star = FallbackIcon, Zap = FallbackIcon,
+  TrendingUp = FallbackIcon, LayoutGrid = FallbackIcon, List = FallbackIcon, RefreshCw = FallbackIcon, Moon = FallbackIcon, SunMedium = FallbackIcon,
+  LogOut = FallbackIcon, Shield = FallbackIcon, Bell = FallbackIcon, Eye = FallbackIcon, EyeOff = FallbackIcon, GripVertical = FallbackIcon, Square = FallbackIcon,
+} = Lucide;
 
 const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
