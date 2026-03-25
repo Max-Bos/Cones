@@ -21,6 +21,30 @@ function App() {
   },[dark]);
 
   useEffect(()=>{
+    const root=document.documentElement;
+    const vars={
+      "--accent":C.accent,
+      "--accent-bg":C.accentBg,
+      "--accent-light":C.accentLight,
+      "--accent-glow":C.accentGlow,
+      "--text":C.text,
+      "--muted":C.muted,
+      "--border-solid":C.borderSolid,
+      "--input-bg":C.inputBg,
+      "--card-bg":C.cardBg,
+      "--card-border":C.cardBorder,
+      "--card-shadow":C.cardShadow,
+      "--hover-bg":C.hoverBg,
+      "--done":C.done,
+      "--olive-light":C.oliveLight,
+      "--bg":C.bg,
+      "--scroll-thumb":C.scrollThumb,
+      "--placeholder":C.muted,
+    };
+    Object.entries(vars).forEach(([k,v])=>root.style.setProperty(k,v));
+  },[dark,C]);
+
+  useEffect(()=>{
     setVisitedPages(v=>v[page]?v:{...v,[page]:true});
   },[page]);
 
@@ -80,21 +104,24 @@ function App() {
   const pageVisibility=(id)=>({hidden:page!==id,"aria-hidden":page!==id?"true":"false"});
 
   return (
-    <div style={{background:C.bg,minHeight:"100vh",display:"flex","--accent":C.accent,"--accent-glow":C.accentGlow,"--placeholder":C.muted,"--scroll-thumb":C.accentGlow}}>
+    <div style={{background:C.bgGradient||C.bg,minHeight:"100vh",display:"flex"}}>
 
       {/* ── Desktop sidebar ── */}
       <div className="desktop-sidebar" style={{
         width:220,flexShrink:0,
         background:C.sidebar,
         borderRight:`1px solid ${C.navBorder}`,
+        backdropFilter:"blur(20px)",
+        WebkitBackdropFilter:"blur(20px)",
         height:"100vh",position:"sticky",top:0,
         display:"flex",flexDirection:"column",
         padding:"1.9rem 0",overflowY:"auto",
         animation:"fadein 0.25s ease",
       }}>
         <div style={{padding:"0 1.5rem",marginBottom:"1.8rem"}}>
-          <h1 style={{fontSize:22,fontWeight:700,color:C.accent,letterSpacing:"-0.02em",display:"flex",alignItems:"center",gap:8}}>🔺 Cones</h1>
+          <h1 style={{fontSize:30,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",display:"flex",alignItems:"center",gap:8}}><span aria-hidden="true">🔺</span> Cones</h1>
         </div>
+        <div style={{height:"1px",background:C.rowDivider,margin:"0 16px 12px"}}/>
         <div style={{display:"flex",flexDirection:"column",gap:4,flex:1,padding:"0 10px"}}>
           {nav.map(n=>(
             <React.Fragment key={n.id}>
@@ -135,7 +162,7 @@ function App() {
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      <div className="mobile-bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,background:C.nav,borderTop:`1px solid ${C.navBorder}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
+      <div className="mobile-bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom)"}}>
         {nav.map(n=><NavItem key={n.id} icon={n.icon} label={n.label} active={page===n.id} onClick={()=>setPage(n.id)} C={C} mobile={true}/>)}
       </div>
 
