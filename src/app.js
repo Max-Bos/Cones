@@ -6,6 +6,7 @@ function App() {
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
   const [page,setPage]=useState("today");
+  const [visitedPages,setVisitedPages]=useState({today:true});
   const [goalsView,setGoalsView]=useState("list");
   const [habits,setHabits]=useState([]);
   const [completions,setCompletions]=useState([]);
@@ -18,6 +19,10 @@ function App() {
   useEffect(()=>{
     localStorage.setItem("cones_dark", String(dark));
   },[dark]);
+
+  useEffect(()=>{
+    setVisitedPages(v=>v[page]?v:{...v,[page]:true});
+  },[page]);
 
   useEffect(()=>{
     sb.auth.getSession().then(({data:{session}})=>{
@@ -119,12 +124,12 @@ function App() {
 
         {/* Page content */}
         <div className="content-area" data-page={page} data-goals-view={goalsView}>
-          {page==="today"    &&<TodayPage    habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/>}
-          {page==="habits"   &&<HabitsPage   habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/>}
-          {page==="goals"    &&<GoalsPage    userId={user.id} habits={habits} completions={completions} onViewChange={setGoalsView} C={C}/>}
-          {page==="notes"    &&<NotesPage    userId={user.id} C={C}/>}
-          {page==="overview" &&<OverviewPage habits={habits} completions={completions} userId={user.id} C={C}/>}
-          {page==="settings" &&<SettingsPage user={user} C={C} dark={dark} setDark={setDark} reminder={reminder} setReminder={setReminder} onSignOut={signOut}/>}
+          {(page==="today"||visitedPages.today)&&<div style={{display:page==="today"?"block":"none"}}><TodayPage habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/></div>}
+          {(page==="habits"||visitedPages.habits)&&<div style={{display:page==="habits"?"block":"none"}}><HabitsPage habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/></div>}
+          {(page==="goals"||visitedPages.goals)&&<div style={{display:page==="goals"?"block":"none"}}><GoalsPage userId={user.id} habits={habits} completions={completions} onViewChange={setGoalsView} C={C}/></div>}
+          {(page==="notes"||visitedPages.notes)&&<div style={{display:page==="notes"?"block":"none"}}><NotesPage userId={user.id} C={C}/></div>}
+          {(page==="overview"||visitedPages.overview)&&<div style={{display:page==="overview"?"block":"none"}}><OverviewPage habits={habits} completions={completions} userId={user.id} C={C}/></div>}
+          {(page==="settings"||visitedPages.settings)&&<div style={{display:page==="settings"?"block":"none"}}><SettingsPage user={user} C={C} dark={dark} setDark={setDark} reminder={reminder} setReminder={setReminder} onSignOut={signOut}/></div>}
         </div>
       </div>
 
