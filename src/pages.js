@@ -569,7 +569,8 @@ function OverviewPage({habits,completions,userId,C}) {
 
   const saveBirthDate=async()=>{
     if(!birthDateInput){setBirthDateError("Please choose a date.");return;}
-    const picked=new Date(`${birthDateInput}T00:00:00`);
+    const [year,month,day]=birthDateInput.split("-").map(Number);
+    const picked=new Date(Date.UTC(year,(month||1)-1,day||1));
     if(Number.isNaN(picked.getTime())||picked>new Date()){setBirthDateError("Please enter a valid past date.");return;}
     setBirthDateError("");
     setSavingBirthDate(true);
@@ -580,7 +581,7 @@ function OverviewPage({habits,completions,userId,C}) {
     setSavingBirthDate(false);
   };
 
-  const weekIndex=Math.min(TOTAL_WEEKS,getWeekIndex(birthDate));
+  const weekIndex=getWeekIndex(birthDate);
   const weeksLived=weekIndex;
   const weeksLeft=Math.max(0,TOTAL_WEEKS-weekIndex);
   const age=Math.floor(weeksLived/WEEKS_PER_YEAR);
@@ -675,15 +676,14 @@ function OverviewPage({habits,completions,userId,C}) {
               <div style={{display:"flex",flexDirection:"column",gap:2,minWidth:WEEKS_PER_YEAR*10-2}}>
                 {Array.from({length:LIFE_YEARS},(_,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                    {i%10===0&&<div className="life-week-year-label" style={{width:18,fontSize:10,color:C.faint,textAlign:"right"}}>{getWeekLabel(i)}</div>}
-                    {i%10!==0&&<div className="life-week-year-label" style={{width:18}}/>}
+                    <div className="life-week-year-label" style={{width:18,fontSize:10,color:C.faint,textAlign:"right"}}>{i%10===0?getYearLabel(i):""}</div>
                     <div className="life-weeks-grid-row">
                       {Array.from({length:WEEKS_PER_YEAR},(_,j)=>{
                         const idx=i*WEEKS_PER_YEAR+j;
                         const isCurrent=weekIndex<TOTAL_WEEKS&&idx===weekIndex;
                         const isLived=idx<weekIndex;
                         return (
-                          <div key={idx} className={`life-week-cell ${isCurrent?"life-week-current":""}`} style={{background:isCurrent?C.accent:(isLived?`${C.accent}B3`:C.border)}}/>
+                          <div key={idx} className={`life-week-cell ${isCurrent?"life-week-current":""} ${isLived?"life-week-lived":""}`} style={{background:isCurrent?C.accent:(isLived?C.accent:C.border)}}/>
                         );
                       })}
                     </div>

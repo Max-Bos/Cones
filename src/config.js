@@ -90,11 +90,11 @@ function getWeekIndex(birthDate) {
   if(!birthDate) return 0;
   const birth = new Date(birthDate);
   if(Number.isNaN(birth.getTime())) return 0;
-  return Math.max(0, Math.floor((Date.now() - birth.getTime()) / MS_PER_WEEK));
+  return Math.min(TOTAL_WEEKS, Math.max(0, Math.floor((Date.now() - birth.getTime()) / MS_PER_WEEK)));
 }
 
-function getWeekLabel(rowIndex) {
-  return rowIndex;
+function getYearLabel(rowIndex) {
+  return rowIndex.toLocaleString();
 }
 
 const todayKey = () => new Date().toISOString().slice(0,10);
