@@ -1,7 +1,12 @@
 /* ══════════════ ROOT ══════════════ */
 function App() {
-  const [dark,setDark]=useState(()=>window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const [dark,setDark]=useState(()=>{
+    const stored=localStorage.getItem("cones_dark");
+    if(stored!==null) return stored==="true";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
   const [page,setPage]=useState("today");
+  const [goalsView,setGoalsView]=useState("list");
   const [habits,setHabits]=useState([]);
   const [completions,setCompletions]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -9,6 +14,10 @@ function App() {
   const [user,setUser]=useState(null);
 
   const C=dark?DARK:LIGHT;
+
+  useEffect(()=>{
+    localStorage.setItem("cones_dark", String(dark));
+  },[dark]);
 
   useEffect(()=>{
     sb.auth.getSession().then(({data:{session}})=>{
@@ -109,10 +118,10 @@ function App() {
         </div>
 
         {/* Page content */}
-        <div className="content-area">
+        <div className="content-area" data-page={page} data-goals-view={goalsView}>
           {page==="today"    &&<TodayPage    habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/>}
           {page==="habits"   &&<HabitsPage   habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/>}
-          {page==="goals"    &&<GoalsPage    userId={user.id} habits={habits} completions={completions} C={C}/>}
+          {page==="goals"    &&<GoalsPage    userId={user.id} habits={habits} completions={completions} onViewChange={setGoalsView} C={C}/>}
           {page==="notes"    &&<NotesPage    userId={user.id} C={C}/>}
           {page==="overview" &&<OverviewPage habits={habits} completions={completions} userId={user.id} C={C}/>}
           {page==="settings" &&<SettingsPage user={user} C={C} dark={dark} setDark={setDark} reminder={reminder} setReminder={setReminder} onSignOut={signOut}/>}
@@ -124,15 +133,16 @@ function App() {
         {nav.map(n=><NavItem key={n.id} icon={n.icon} label={n.label} active={page===n.id} onClick={()=>setPage(n.id)} C={C} mobile={true}/>)}
       </div>
 
-      <style>{`
-        @media(min-width:640px){
-          .desktop-sidebar{display:flex!important;}
-          .mobile-bottom-nav{display:none!important;}
-          .top-bar{display:flex!important;align-items:center;justify-content:space-between;padding:1.9rem 3rem 1.25rem;margin-bottom:0;}
-          .top-bar h2{font-size:24px;font-weight:600;letter-spacing:-0.02em;}
-          .content-area{padding:1.9rem 3rem 2.5rem;max-width:760px;}
-          .page-heading{display:none!important;}
-        }
+        <style>{`
+          @media(min-width:640px){
+            .desktop-sidebar{display:flex!important;}
+            .mobile-bottom-nav{display:none!important;}
+            .top-bar{display:flex!important;align-items:center;justify-content:space-between;padding:1.9rem 3rem 1.25rem;margin-bottom:0;}
+            .top-bar h2{font-size:24px;font-weight:600;letter-spacing:-0.02em;}
+            .content-area{padding:1.9rem 3rem 2.5rem;max-width:760px;}
+            .content-area[data-page="goals"][data-goals-view="board"]{max-width:none;}
+            .page-heading{display:none!important;}
+          }
         @media(max-width:639px){
           .desktop-sidebar{display:none!important;}
           .top-bar{display:none!important;}
