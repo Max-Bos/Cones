@@ -335,14 +335,20 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 }
 
 /* ── GOALS ── */
-function GoalsPage({userId,habits,C}) {
+function GoalsPage({userId,habits,completions,C}) {
   const MS_PER_DAY=1000*60*60*24;
   const MOBILE_QUERY="(max-width: 639px)";
+  const ZOOM_LEVELS={
+    week:{days:28,cellWidth:40},
+    month:{days:90,cellWidth:14},
+    quarter:{days:180,cellWidth:7},
+  };
   const [goals,setGoals]=useState([]);
   const [subs,setSubs]=useState([]);
   const [loading,setLoading]=useState(true);
   const [newSub,setNewSub]=useState({});
   const [expanded,setExpanded]=useState({});
+  const [roadmapExpanded,setRoadmapExpanded]=useState({});
   const [showArchived,setShowArchived]=useState(false);
   const [view,setView]=useState("list");
   const [showAddForm,setShowAddForm]=useState(false);
@@ -351,8 +357,17 @@ function GoalsPage({userId,habits,C}) {
   const [editingSubId,setEditingSubId]=useState(null);
   const [editingSubVal,setEditingSubVal]=useState("");
   const [openSubNote,setOpenSubNote]=useState({});
+  const [openColorId,setOpenColorId]=useState(null);
   const [dragGoalId,setDragGoalId]=useState(null);
   const [isMobile,setIsMobile]=useState(()=>window.matchMedia(MOBILE_QUERY).matches);
+  const [selectedGoalId,setSelectedGoalId]=useState(null);
+  const [zoomLevel,setZoomLevel]=useState("month");
+  const [toast,setToast]=useState("");
+  const panelRef=useRef(null);
+  const goalNoteTimers=useRef({});
+  const subNoteTimers=useRef({});
+  const goalPatchTimers=useRef({});
+  const seenCompletionIds=useRef(new Set());
   const [newGoalForm,setNewGoalForm]=useState({
     title:"",
     status:"not_started",
@@ -368,8 +383,12 @@ function GoalsPage({userId,habits,C}) {
       sb.from("goals").select("*").eq("user_id",userId).order("created_at"),
       sb.from("subtasks").select("*").eq("user_id",userId),
     ]);
-    setGoals(g||[]);
+    const nextGoals=g||[];
+    setGoals(nextGoals);
     setSubs(s||[]);
+    const defaultExpanded=Object.fromEntries(nextGoals.map(goal=>[goal.id,!window.matchMedia(MOBILE_QUERY).matches]));
+    setExpanded(defaultExpanded);
+    setRoadmapExpanded(Object.fromEntries(nextGoals.map(goal=>[goal.id,true])));
     setLoading(false);
   })();},[userId]);
 
@@ -379,11 +398,27 @@ function GoalsPage({userId,habits,C}) {
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
 
+  useEffect(()=>{
+    if(!selectedGoalId) return;
+    const onDown=(e)=>{
+      if(panelRef.current && !panelRef.current.contains(e.target)) setSelectedGoalId(null);
+    };
+    window.addEventListener("mousedown",onDown);
+    return ()=>window.removeEventListener("mousedown",onDown);
+  },[selectedGoalId]);
+
+  useEffect(()=>{
+    if(!toast) return;
+    const t=setTimeout(()=>setToast(""),2200);
+    return ()=>clearTimeout(t);
+  },[toast]);
+
   const statusById=Object.fromEntries(STATUSES.map(s=>[s.id,s]));
   const priorityById=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
   const habitsById=Object.fromEntries((habits||[]).map(h=>[h.id,h]));
   const activeGoals=goals.filter(g=>!g.archived);
   const archivedGoals=goals.filter(g=>g.archived);
+  const selectedGoal=activeGoals.find(g=>g.id===selectedGoalId)||null;
   const isOverdue=(d)=>!!d&&d<todayKey();
   const formatDueDate=(d)=>d?new Date(`${d}T00:00:00`).toLocaleDateString("nl-NL",{month:"short",day:"numeric"}):"";
   const goalSubs=(goalId)=>subs.filter(s=>s.goal_id===goalId);
@@ -393,6 +428,21 @@ function GoalsPage({userId,habits,C}) {
     const pct=items.length?Math.round((done/items.length)*100):0;
     return {items,done,pct};
   };
+  const isHabitDoneToday=(habitId)=>!!(habitId&&completions?.some(c=>c.habit_id===habitId&&c.date===todayKey()));
+
+  useEffect(()=>{
+    const linkedGoals=activeGoals.filter(g=>g.linked_habit_id);
+    if(!linkedGoals.length) return;
+    const today=todayKey();
+    const nextMessage=(completions||[]).find(c=>c.date===today&&!seenCompletionIds.current.has(c.id)&&linkedGoals.some(g=>g.linked_habit_id===c.habit_id));
+    if(!nextMessage) return;
+    seenCompletionIds.current.add(nextMessage.id);
+    const linkedGoal=linkedGoals.find(g=>g.linked_habit_id===nextMessage.habit_id);
+    if(linkedGoal){
+      const linkedHabit=habitsById[linkedGoal.linked_habit_id];
+      setToast(`${linkedHabit?.name||"Habit"} completed → Goal: ${linkedGoal.title} ↑`);
+    }
+  },[completions,activeGoals,habitsById]);
 
   const updateGoal=async(id,patch)=>{
     setGoals(g=>g.map(x=>x.id===id?{...x,...patch}:x));
@@ -402,16 +452,34 @@ function GoalsPage({userId,habits,C}) {
     setSubs(s=>s.map(x=>x.id===id?{...x,...patch}:x));
     await sb.from("subtasks").update(patch).eq("id",id);
   };
+  const updateGoalDebounced=(id,patch)=>{
+    setGoals(g=>g.map(x=>x.id===id?{...x,...patch}:x));
+    clearTimeout(goalPatchTimers.current[id]);
+    goalPatchTimers.current[id]=setTimeout(async()=>{
+      await sb.from("goals").update(patch).eq("id",id);
+    },600);
+  };
+  const updateGoalNote=(id,note)=>{
+    setGoals(g=>g.map(x=>x.id===id?{...x,note}:x));
+    clearTimeout(goalNoteTimers.current[id]);
+    goalNoteTimers.current[id]=setTimeout(async()=>{
+      await sb.from("goals").update({note}).eq("id",id);
+    },600);
+  };
+  const updateSubNote=(id,note)=>{
+    setSubs(s=>s.map(x=>x.id===id?{...x,note}:x));
+    clearTimeout(subNoteTimers.current[id]);
+    subNoteTimers.current[id]=setTimeout(async()=>{
+      await sb.from("subtasks").update({note}).eq("id",id);
+    },600);
+  };
 
   const addGoal=async()=>{
     const title=newGoalForm.title.trim();
     if(!title) return;
     const id=Date.now().toString();
     const payload={
-      id,
-      title,
-      user_id:userId,
-      archived:false,
+      id,title,user_id:userId,archived:false,
       status:newGoalForm.status||"not_started",
       priority:newGoalForm.priority||"medium",
       color:newGoalForm.color||GOAL_COLORS[0],
@@ -422,7 +490,8 @@ function GoalsPage({userId,habits,C}) {
     const {data}=await sb.from("goals").insert(payload).select().single();
     if(data){
       setGoals(g=>[...g,data]);
-      setExpanded(e=>({...e,[id]:true}));
+      setExpanded(e=>({...e,[id]:!isMobile}));
+      setRoadmapExpanded(e=>({...e,[id]:true}));
       setShowAddForm(false);
       setNewGoalForm({title:"",status:"not_started",priority:"medium",color:GOAL_COLORS[0],due_date:"",linked_habit_id:"",note:""});
     }
@@ -431,6 +500,7 @@ function GoalsPage({userId,habits,C}) {
     await sb.from("goals").delete().eq("id",id);
     setGoals(g=>g.filter(x=>x.id!==id));
     setSubs(s=>s.filter(x=>x.goal_id!==id));
+    if(selectedGoalId===id) setSelectedGoalId(null);
   };
   const addSub=async(goalId)=>{
     const title=(newSub[goalId]||"").trim();
@@ -468,23 +538,29 @@ function GoalsPage({userId,habits,C}) {
     const elapsedDays=(dateTs-minDateTs)/MS_PER_DAY;
     return (elapsedDays/totalDays)*containerWidth;
   };
-  const roadmapGoals=activeGoals;
-  const roadmapDueDates=roadmapGoals.map(g=>g.due_date).filter(Boolean);
+  const roadmapGoals=activeGoals.filter(g=>g.due_date||goalSubs(g.id).some(s=>s.due_date));
+  const roadmapDueDates=roadmapGoals.flatMap(g=>[g.due_date,...goalSubs(g.id).map(s=>s.due_date)]).filter(Boolean);
   const minCreatedTs=roadmapGoals.reduce((acc,g)=>Math.min(acc,new Date(g.created_at).getTime()),Number.POSITIVE_INFINITY);
   const minCreated=Number.isFinite(minCreatedTs)?new Date(minCreatedTs):new Date();
   const maxDue=roadmapDueDates.length?new Date(Math.max(...roadmapDueDates.map(d=>new Date(d).getTime()))):new Date(minCreated.getTime()+90*MS_PER_DAY);
   const minDate=minCreated;
-  const minDatePlusThreeMonths=new Date(minDate.getTime());
-  minDatePlusThreeMonths.setMonth(minDatePlusThreeMonths.getMonth()+3);
-  const endDate=maxDue>minDatePlusThreeMonths?maxDue:minDatePlusThreeMonths;
+  const minDateTarget=new Date(minDate.getTime());
+  minDateTarget.setDate(minDateTarget.getDate()+ZOOM_LEVELS[zoomLevel].days);
+  const endDate=maxDue>minDateTarget?maxDue:minDateTarget;
   const totalDays=Math.max(1,Math.ceil((endDate-minDate)/MS_PER_DAY));
-  const containerWidth=Math.max(720,totalDays*4);
+  const containerWidth=Math.max(720,totalDays*ZOOM_LEVELS[zoomLevel].cellWidth);
   const monthTicks=[];
+  const weekTicks=[];
   const monthCursor=new Date(minDate.getFullYear(),minDate.getMonth(),1);
   const monthEnd=new Date(endDate.getFullYear(),endDate.getMonth()+1,1);
   while(monthCursor<=monthEnd){
     monthTicks.push(new Date(monthCursor));
     monthCursor.setMonth(monthCursor.getMonth()+1);
+  }
+  const weekCursor=new Date(minDate);
+  while(weekCursor<=endDate){
+    weekTicks.push(new Date(weekCursor));
+    weekCursor.setDate(weekCursor.getDate()+7);
   }
   const todayPosition=Math.max(0,Math.min(containerWidth,getRoadmapPosition(new Date(),minDate,totalDays,containerWidth)));
   const tabLeftByView={list:"3px",roadmap:"calc(33.333% + 1px)",board:"calc(66.666% + 1px)"};
@@ -500,12 +576,50 @@ function GoalsPage({userId,habits,C}) {
     const next=(idx+dir+STATUSES.length)%STATUSES.length;
     return STATUSES[next].id;
   };
+  const openAddFromColumn=(status)=>{ setView("list"); setShowAddForm(true); setNewGoalForm(f=>({...f,status})); };
+  const roadmapLayout=roadmapGoals.reduce((acc,g)=>{
+    const status=statusById[g.status]||statusById.not_started;
+    const subItems=goalSubs(g.id);
+    const start=getRoadmapPosition(g.created_at,minDate,totalDays,containerWidth);
+    const fallbackEnd=getRoadmapPosition(new Date(new Date(g.created_at).getTime()+30*MS_PER_DAY),minDate,totalDays,containerWidth);
+    const due=g.due_date?new Date(g.due_date):null;
+    const end=due?getRoadmapPosition(due,minDate,totalDays,containerWidth):fallbackEnd;
+    const barWidth=Math.max(28,end-start);
+    const top=acc.top;
+    acc.nodes.push(
+      <div key={`goal_${g.id}`}>
+        <button onClick={()=>setRoadmapExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{position:"absolute",left:-184,top:top+9,width:18,height:18,background:"transparent",border:"none",cursor:"pointer",color:C.muted}}>{roadmapExpanded[g.id]!==false?"▼":"▶"}</button>
+        <div style={{position:"absolute",left:-164,top:top+10,width:160,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
+        <div title={`${g.title} • Due ${g.due_date||"none"} • ${status.label} • Assignee note: ${g.note?getNotePreview(g.note):"none"}`} style={{position:"absolute",left:start,top,width:barWidth,height:36,borderRadius:999,background:g.color||C.accent,display:"flex",alignItems:"center",padding:"0 12px",color:"#fff",fontSize:12,fontWeight:600,overflow:"hidden",whiteSpace:"nowrap"}}>
+          {g.title}
+        </div>
+      </div>
+    );
+    acc.top+=44;
+    if(roadmapExpanded[g.id]!==false){
+      subItems.forEach(s=>{
+        const subEnd=s.due_date?getRoadmapPosition(new Date(s.due_date),minDate,totalDays,containerWidth):end;
+        const subWidth=Math.max(18,subEnd-start);
+        acc.nodes.push(
+          <div key={`sub_${s.id}`}>
+            <div style={{position:"absolute",left:-140,top:acc.top+2,width:130,fontSize:12,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>└─ {s.title}</div>
+            <div title={`${s.title} • Due ${s.due_date||"none"} • ${s.done?"Done":"Pending"} • Assignee note: ${s.note||"none"}`} style={{position:"absolute",left:start+24,top:acc.top,width:subWidth,height:20,borderRadius:999,border:s.due_date?"none":`1px dotted ${(g.color||C.accent)}AA`,background:s.done?`repeating-linear-gradient(135deg, ${(g.color||C.accent)}, ${(g.color||C.accent)} 8px, ${(g.color||C.accent)}CC 8px, ${(g.color||C.accent)}CC 16px)`:`${(g.color||C.accent)}88`,display:"flex",alignItems:"center",padding:"0 8px",fontSize:11,color:"#fff"}}>
+              {s.done?"✓":""}
+            </div>
+          </div>
+        );
+        acc.top+=24;
+      });
+    }
+    return acc;
+  },{top:0,nodes:[]});
 
   if(loading) return <Spinner C={C}/>;
 
   return (
     <div className="fadein">
       <h2 className="page-heading" style={{fontSize:24,fontWeight:600,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.4rem"}}>Goals</h2>
+      {toast&&<div style={{position:"fixed",right:18,bottom:isMobile?86:18,zIndex:120,background:C.cardBg,border:`1px solid ${C.accent}`,borderRadius:10,padding:"10px 14px",fontSize:13,color:C.text,boxShadow:`0 8px 24px ${C.accentGlow}`}}>{toast}</div>}
 
       <div style={{position:"relative",display:"flex",background:C.bg,borderRadius:10,padding:3,marginBottom:18,border:`1px solid ${C.border}`,maxWidth:420}}>
         <div style={{position:"absolute",top:3,bottom:3,left:tabSliderLeft,width:"calc(33.333% - 4px)",borderRadius:8,background:C.accent,transition:"all 0.2s ease"}}/>
@@ -521,7 +635,7 @@ function GoalsPage({userId,habits,C}) {
           {!showAddForm?(
             <button onClick={()=>setShowAddForm(true)} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 16px",fontSize:14,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer",marginBottom:"1rem"}}>+ Add goal</button>
           ):(
-            <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:14}}>
+            <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px 24px",marginBottom:14}}>
               <input value={newGoalForm.title} onChange={e=>setNewGoalForm(f=>({...f,title:e.target.value}))} placeholder="Goal name"
                 style={{width:"100%",height:42,border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 16px",fontSize:14,background:C.inputBg,color:C.text,marginBottom:10}}/>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:10}}>
@@ -551,9 +665,8 @@ function GoalsPage({userId,habits,C}) {
                   <button key={color} onClick={()=>setNewGoalForm(f=>({...f,color}))} style={{width:24,height:24,borderRadius:"50%",border:`2px solid ${newGoalForm.color===color?C.text:C.border}`,background:color,cursor:"pointer"}}/>
                 ))}
               </div>
-              <textarea rows={3} value={newGoalForm.note} onChange={e=>setNewGoalForm(f=>({...f,note:e.target.value}))} placeholder="Note"
-                style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 16px",fontSize:14,color:C.text,background:C.inputBg,lineHeight:1.5,marginBottom:10}}/>
-              <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <RichEditor value={newGoalForm.note} onChange={val=>setNewGoalForm(f=>({...f,note:val}))} placeholder="Goal note..." C={C}/>
+              <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:10}}>
                 <button onClick={()=>setShowAddForm(false)} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 14px",fontSize:13,background:C.inputBg,color:C.muted,cursor:"pointer"}}>Cancel</button>
                 <button onClick={addGoal} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer"}}>Add goal</button>
               </div>
@@ -565,64 +678,95 @@ function GoalsPage({userId,habits,C}) {
             Show archived
           </label>
 
-          {activeGoals.length===0&&<EmptyState C={C} title="No goals yet" message="Break your ambitions into goals and small subtasks."/>}
+          {activeGoals.length===0&&(
+            <div style={{textAlign:"center",padding:"2.8rem 1rem",background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12}}>
+              <div style={{width:82,height:82,borderRadius:"50%",border:`2px solid ${C.border}`,margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,color:C.done}}>✓</div>
+              <p style={{fontSize:18,fontWeight:600,color:C.text,marginBottom:6}}>No goals yet</p>
+              <p style={{fontSize:13,color:C.muted,marginBottom:14}}>Break down your ambitions into achievable milestones</p>
+              <button onClick={()=>setShowAddForm(true)} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 16px",fontSize:14,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer"}}>+ Create your first goal</button>
+            </div>
+          )}
           {activeGoals.map(g=>{
             const {items,done,pct}=goalProgress(g.id);
             const isOpen=!!expanded[g.id];
             const status=statusById[g.status]||statusById.not_started;
             const priority=priorityById[g.priority]||priorityById.medium;
             const linkedHabit=habitsById[g.linked_habit_id];
+            const linkedDone=isHabitDoneToday(g.linked_habit_id);
             return (
-              <div key={g.id} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"18px 20px",marginBottom:12,boxShadow:`inset 5px 0 0 ${g.color||GOAL_COLORS[0]}`}}>
+              <div key={g.id} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px 24px",marginBottom:14,boxShadow:`inset 6px 0 0 ${g.color||GOAL_COLORS[0]}`}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <button onClick={()=>setOpenColorId(openColorId===g.id?null:g.id)} style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${C.border}`,background:g.color||GOAL_COLORS[0],cursor:"pointer"}}/>
                   {editingGoalId===g.id?(
                     <input value={editingGoalVal} autoFocus onChange={e=>setEditingGoalVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveGoalEdit(g.id); if(e.key==="Escape"){setEditingGoalId(null);setEditingGoalVal("");}}} onBlur={()=>saveGoalEdit(g.id)}
-                      style={{flex:1,minWidth:160,height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:15,fontWeight:500,background:C.inputBg,color:C.text}}/>
+                      style={{flex:1,minWidth:160,height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:16,fontWeight:500,background:C.inputBg,color:C.text}}/>
                   ):(
-                    <span onClick={()=>startGoalEdit(g)} style={{flex:1,fontSize:15,fontWeight:500,color:C.text,cursor:"text"}}>{g.title}</span>
+                    <span style={{flex:1,fontSize:16,fontWeight:500,color:C.text}}>{g.title}</span>
                   )}
-                  <span style={{fontSize:12,color:status.color,background:`${status.color}1A`,border:`1px solid ${status.color}55`,borderRadius:999,padding:"3px 10px"}}>{status.label}</span>
-                  <span style={{fontSize:12,color:priority.color,background:`${priority.color}1A`,border:`1px solid ${priority.color}55`,borderRadius:999,padding:"3px 10px"}}>{priority.label}</span>
-                  {g.due_date&&<span style={{fontSize:12,color:isOverdue(g.due_date)?C.danger:C.muted}}>Due {formatDueDate(g.due_date)}</span>}
-                  {linkedHabit&&<span style={{fontSize:12,color:C.accent,border:`1px solid ${C.accent}55`,background:C.hoverBg,borderRadius:999,padding:"3px 10px"}}>🔗 {linkedHabit.name}</span>}
+                  <button onClick={()=>startGoalEdit(g)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>✎</button>
                   <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{width:32,height:32,fontSize:11,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
+                  {isMobile&&<button onClick={()=>setSelectedGoalId(g.id)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:C.text,cursor:"pointer"}}>Open</button>}
                   {pct===100&&<button onClick={()=>updateGoal(g.id,{archived:true})} style={{fontSize:12,color:C.accent,background:C.inputBg,border:`1px solid ${C.accent}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Archive</button>}
                   <button onClick={()=>delGoal(g.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                 </div>
-                <div style={{height:8,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:isOpen?12:0}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:(g.color||C.accent),borderRadius:999,transition:"width 0.6s cubic-bezier(0.4, 0, 0.2, 1)"}}/></div>
+                {openColorId===g.id&&(
+                  <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                    {GOAL_COLORS.map(color=>(
+                      <button key={color} onClick={()=>updateGoal(g.id,{color})} style={{width:20,height:20,borderRadius:"50%",border:`2px solid ${g.color===color?C.text:C.border}`,background:color,cursor:"pointer"}}/>
+                    ))}
+                  </div>
+                )}
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:8}}>
+                  <select value={g.status||"not_started"} onChange={e=>updateGoal(g.id,{status:e.target.value})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:status.color}}>
+                    {STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                  <select value={g.priority||"medium"} onChange={e=>updateGoal(g.id,{priority:e.target.value})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:priority.color}}>
+                    {PRIORITIES.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+                  </select>
+                  <input type="date" value={g.due_date||""} onChange={e=>updateGoal(g.id,{due_date:e.target.value||null})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:C.text}}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:C.muted,marginBottom:6}}>
+                  <span>Priority: {priority.label}</span>
+                  <span style={{fontWeight:600,color:pct===100?C.done:C.accent}}>{pct}%</span>
+                </div>
+                <div style={{height:8,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done:(g.color||C.accent),borderRadius:999,transition:"width 0.6s cubic-bezier(0.4, 0, 0.2, 1)"}}/></div>
+                <div style={{fontSize:12,color:C.muted,marginBottom:isOpen?10:0}}>{done}/{items.length||0} subtasks {linkedHabit?`• 🔗 ${linkedHabit.name} — ${linkedDone?"done today ✓":"not done yet"}`:""}</div>
                 {isOpen&&(
                   <div style={{borderTop:`1px solid ${C.rowDivider}`,paddingTop:12}}>
-                    {g.note&&<p style={{fontSize:12,color:C.muted,marginBottom:8}}>{g.note}</p>}
-                    {items.map(s=>{
-                      const subDueColor=(s.due_date&&isOverdue(s.due_date))?C.danger:C.muted;
-                      return (
-                        <div key={s.id} style={{padding:"6px 0"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                              {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                            </div>
-                            {editingSubId===s.id?(
-                              <input value={editingSubVal} autoFocus onChange={e=>setEditingSubVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveSubEdit(s.id); if(e.key==="Escape"){setEditingSubId(null);setEditingSubVal("");}}} onBlur={()=>saveSubEdit(s.id)}
-                                style={{flex:1,minWidth:120,height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,background:C.inputBg,color:C.text}}/>
-                            ):(
-                              <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
-                            )}
-                            <input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{height:30,border:`1px solid ${C.border}`,borderRadius:7,padding:"0 8px",fontSize:12,background:C.inputBg,color:subDueColor}}/>
-                            <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>💬</button>
-                            <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
+                    <div className="section-label" style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:C.faint,marginBottom:8}}>Subtasks</div>
+                    {items.map(s=>(
+                      <div key={s.id} style={{padding:"7px 0"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{width:8,height:8,borderRadius:"50%",background:s.done?C.done:C.accent,flexShrink:0}}/>
+                          <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </div>
-                          {openSubNote[s.id]&&(
-                            <textarea rows={2} value={s.note||""} onChange={e=>updateSub(s.id,{note:e.target.value})} placeholder="Subtask note..."
-                              style={{marginTop:6,marginLeft:30,width:"calc(100% - 30px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.text,background:C.inputBg,lineHeight:1.4}}/>
+                          {editingSubId===s.id?(
+                            <input value={editingSubVal} autoFocus onChange={e=>setEditingSubVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveSubEdit(s.id); if(e.key==="Escape"){setEditingSubId(null);setEditingSubVal("");}}} onBlur={()=>saveSubEdit(s.id)}
+                              style={{flex:1,minWidth:120,height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,background:C.inputBg,color:C.text}}/>
+                          ):(
+                            <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
                           )}
+                          <label style={{display:"inline-flex",alignItems:"center",height:26,padding:"0 8px",borderRadius:999,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,fontSize:11,color:isOverdue(s.due_date)?C.danger:C.muted,background:C.inputBg,cursor:"pointer"}}>
+                            {s.due_date?formatDueDate(s.due_date):"No date"}
+                            <input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{opacity:0,width:0,height:0,padding:0,border:"none"}}/>
+                          </label>
+                          <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>💬</button>
+                          <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                         </div>
-                      );
-                    })}
+                        {openSubNote[s.id]&&(
+                          <textarea rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} placeholder="Subtask note..."
+                            style={{marginTop:6,marginLeft:38,width:"calc(100% - 38px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.text,background:C.inputBg,lineHeight:1.4}}/>
+                        )}
+                      </div>
+                    ))}
                     <div style={{display:"flex",gap:8,marginTop:10}}>
                       <input value={newSub[g.id]||""} onChange={e=>setNewSub(n=>({...n,[g.id]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addSub(g.id)}
-                        placeholder="Add sub-task..." style={{flex:1,height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:13,background:C.inputBg,color:C.text}}/>
+                        placeholder="+ Add subtask" style={{flex:1,height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:13,background:C.inputBg,color:C.text}}/>
                       <button onClick={()=>addSub(g.id)} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:500,background:C.inputBg,color:C.accent,cursor:"pointer"}}>Add</button>
                     </div>
+                    <div className="section-label" style={{fontSize:13,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:C.faint,marginTop:12,marginBottom:6}}>Goal note</div>
+                    <RichEditor value={g.note||""} onChange={val=>updateGoalNote(g.id,val)} placeholder="Goal note..." C={C}/>
                   </div>
                 )}
               </div>
@@ -651,37 +795,34 @@ function GoalsPage({userId,habits,C}) {
       )}
 
       {view==="roadmap"&&(
-        <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 16px",overflowX:"auto"}}>
+        <div style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 16px",overflowX:"auto",minHeight:400}}>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginBottom:10}}>
+            {Object.keys(ZOOM_LEVELS).map(z=>(
+              <button key={z} onClick={()=>setZoomLevel(z)} style={{height:30,border:`1px solid ${zoomLevel===z?C.accent:C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:zoomLevel===z?C.hoverBg:C.inputBg,color:zoomLevel===z?C.accent:C.muted,cursor:"pointer"}}>{z[0].toUpperCase()+z.slice(1)}</button>
+            ))}
+          </div>
           {roadmapGoals.length===0?(
-            <EmptyState C={C} title="No goals yet" message="Add goals to see your roadmap."/>
+            <div style={{textAlign:"center",padding:"3rem 1rem"}}>
+              <p style={{fontSize:16,fontWeight:600,color:C.text,marginBottom:6}}>No goals with due dates</p>
+              <p style={{fontSize:13,color:C.muted,marginBottom:12}}>Add due dates to your goals to see them on the roadmap</p>
+              <button onClick={()=>setView("list")} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer"}}>Go to list view</button>
+            </div>
           ):(
-            <div style={{minWidth:containerWidth+180}}>
-              <div style={{position:"relative",height:34,marginLeft:160,borderBottom:`1px solid ${C.border}`}}>
+            <div style={{minWidth:containerWidth+210}}>
+              <div style={{position:"relative",height:46,marginLeft:190,borderBottom:`1px solid ${C.border}`}}>
                 {monthTicks.map((m)=>{
                   const x=getRoadmapPosition(m,minDate,totalDays,containerWidth);
-                  return <div key={m.toISOString()} style={{position:"absolute",left:x,fontSize:12,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("nl-NL",{month:"short"})}</div>;
+                  return <div key={m.toISOString()} style={{position:"absolute",left:x,top:2,fontSize:12,fontWeight:600,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("nl-NL",{month:"short"})}</div>;
                 })}
+                {weekTicks.map((w)=>{
+                  const x=getRoadmapPosition(w,minDate,totalDays,containerWidth);
+                  return <div key={`w_${w.toISOString()}`} style={{position:"absolute",left:x,bottom:0,width:1,height:8,background:C.border}}/>;
+                })}
+                <div style={{position:"absolute",left:todayPosition,top:0,bottom:0,width:2,background:C.accent,zIndex:2}}/>
+                <div style={{position:"absolute",left:todayPosition+4,top:2,fontSize:11,color:C.accent,fontWeight:600}}>Today</div>
               </div>
-              <div style={{position:"relative",width:containerWidth,height:roadmapGoals.length*40,marginLeft:160}}>
-                <div style={{position:"absolute",left:todayPosition,top:0,bottom:0,width:2,background:C.danger,opacity:0.8}}/>
-                {roadmapGoals.map((g,i)=>{
-                  const rowTop=i*40+4;
-                  const start=getRoadmapPosition(g.created_at,minDate,totalDays,containerWidth);
-                  const due=g.due_date?new Date(g.due_date):null;
-                  const end=due?getRoadmapPosition(due,minDate,totalDays,containerWidth):containerWidth;
-                  const barWidth=Math.max(26,end-start);
-                  const status=statusById[g.status]||statusById.not_started;
-                  return (
-                    <div key={g.id}>
-                      <div style={{position:"absolute",left:-152,top:rowTop+6,width:145,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
-                      <div style={{position:"absolute",left:start,top:rowTop,width:barWidth,height:32,borderRadius:8,background:g.color||C.accent,border:due?"none":`1px dashed ${C.faint}`,display:"flex",alignItems:"center",padding:"0 10px",color:"#fff",fontSize:12,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                        <span style={{width:8,height:8,borderRadius:"50%",background:status.color,marginRight:8,flexShrink:0}}/>
-                        {barWidth>120?g.title:""}
-                      </div>
-                      {barWidth<=120&&<div style={{position:"absolute",left:start+barWidth+6,top:rowTop+8,fontSize:12,color:C.text}}>{g.title}</div>}
-                    </div>
-                  );
-                })}
+              <div style={{position:"relative",width:containerWidth,marginLeft:190,paddingTop:8,paddingBottom:8,height:roadmapLayout.top+12}}>
+                {roadmapLayout.nodes}
               </div>
             </div>
           )}
@@ -689,51 +830,102 @@ function GoalsPage({userId,habits,C}) {
       )}
 
       {view==="board"&&(
-        <div style={{display:"grid",gap:12,gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))"}}>
-          {STATUSES.map(s=>{
-            const items=activeGoals.filter(g=>(g.status||"not_started")===s.id);
-            return (
-              <div key={s.id} onDragOver={e=>{if(!isMobile) e.preventDefault();}} onDrop={()=>handleBoardDrop(s.id)}
-                style={{background:`${s.color}1A`,border:`1px solid ${C.border}`,borderRadius:12,padding:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <span style={{fontSize:13,fontWeight:600,color:C.text}}>{s.label}</span>
-                  <span style={{fontSize:12,color:C.muted}}>{items.length}</span>
-                </div>
-                {items.map(g=>{
-                  const {items:subItems,done,pct}=goalProgress(g.id);
-                  const priority=priorityById[g.priority]||priorityById.medium;
-                  return (
-                    <div
-                      key={g.id}
-                      draggable={!isMobile}
-                      tabIndex={!isMobile?0:-1}
-                      onDragStart={()=>setDragGoalId(g.id)}
-                      onKeyDown={e=>{
-                        if(isMobile) return;
-                        if(e.key==="ArrowRight"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",1)}); }
-                        if(e.key==="ArrowLeft"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",-1)}); }
-                      }}
-                      aria-label={`${g.title}. Current status: ${(statusById[g.status]||statusById.not_started).label}. Use left and right arrows to change status.`}
-                      style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 10px 9px",marginBottom:8,boxShadow:`inset 0 4px 0 ${g.color||GOAL_COLORS[0]}`,cursor:isMobile?"default":"grab"}}
-                    >
-                      <div style={{fontSize:13,fontWeight:500,color:C.text,marginBottom:7}}>{g.title}</div>
-                      <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:7}}><div style={{height:"100%",width:`${pct}%`,background:g.color||C.accent}}/></div>
-                      <div style={{display:"flex",justifyContent:"space-between",gap:6,fontSize:11,color:C.muted,marginBottom:6}}>
-                        <span style={{color:priority.color}}>{priority.label}</span>
-                        <span style={{color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted}}>{g.due_date?formatDueDate(g.due_date):"No due"}</span>
-                      </div>
-                      <div style={{fontSize:11,color:C.muted}}>{done}/{subItems.length||0} subtasks</div>
-                      {isMobile&&(
-                        <select value={g.status||"not_started"} onChange={e=>updateGoal(g.id,{status:e.target.value})} style={{marginTop:6,width:"100%",height:30,border:`1px solid ${C.border}`,borderRadius:7,padding:"0 8px",fontSize:12,background:C.inputBg,color:C.text}}>
+        <div style={{overflowX:"auto"}}>
+          <div style={{display:"grid",gap:12,gridTemplateColumns:"repeat(4,minmax(280px,1fr))",minWidth:isMobile?0:1150}}>
+            {STATUSES.map(s=>{
+              const items=activeGoals.filter(g=>(g.status||"not_started")===s.id);
+              return (
+                <div key={s.id} onDragOver={e=>{if(!isMobile) e.preventDefault();}} onDrop={()=>handleBoardDrop(s.id)}
+                  style={{background:`${s.color}1A`,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
+                  <div style={{height:48,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <span style={{fontSize:13,fontWeight:600,color:C.text,textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.label}</span>
+                    <span style={{fontSize:12,color:C.muted,background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:999,padding:"2px 8px"}}>{items.length}</span>
+                  </div>
+                  {items.length===0&&(
+                    <button onClick={()=>openAddFromColumn(s.id)} style={{width:"100%",height:124,border:`1px dashed ${C.border}`,borderRadius:10,background:C.inputBg,color:C.muted,fontSize:13,cursor:"pointer",marginBottom:10}}>+ Add goal</button>
+                  )}
+                  {items.map(g=>{
+                    const {items:subItems,done,pct}=goalProgress(g.id);
+                    const priority=priorityById[g.priority]||priorityById.medium;
+                    return (
+                      <div
+                        key={g.id}
+                        draggable={!isMobile}
+                        tabIndex={!isMobile?0:-1}
+                        onDragStart={()=>setDragGoalId(g.id)}
+                        onClick={()=>setSelectedGoalId(g.id)}
+                        onKeyDown={e=>{
+                          if(isMobile) return;
+                          if(e.key==="ArrowRight"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",1)}); }
+                          if(e.key==="ArrowLeft"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",-1)}); }
+                        }}
+                        aria-label={`${g.title}. Current status: ${(statusById[g.status]||statusById.not_started).label}. Use left and right arrows to change status.`}
+                        style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 14px 12px",marginBottom:10,minHeight:180,cursor:isMobile?"pointer":"grab"}}
+                      >
+                        <div style={{height:6,borderRadius:999,background:g.color||GOAL_COLORS[0],marginBottom:12}}/>
+                        <div style={{fontSize:16,fontWeight:500,color:C.text,marginBottom:10}}>{g.title}</div>
+                        <div style={{fontSize:12,color:priority.color,marginBottom:4}}>● {priority.label} priority</div>
+                        <div style={{fontSize:12,color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted,marginBottom:8}}>📅 {g.due_date?formatDueDate(g.due_date):"No due date"}</div>
+                        <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:7}}><div style={{height:"100%",width:`${pct}%`,background:g.color||C.accent}}/></div>
+                        <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{done}/{subItems.length||0}</div>
+                        {subItems.slice(0,3).map(s=><div key={s.id} style={{fontSize:11,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",marginBottom:2}}>{s.done?"☑":"☐"} {s.title}</div>)}
+                        <select value={g.status||"not_started"} onChange={e=>updateGoal(g.id,{status:e.target.value})} onClick={e=>e.stopPropagation()} style={{marginTop:8,width:"100%",height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 8px",fontSize:12,background:C.inputBg,color:C.text}}>
                           {STATUSES.map(opt=><option key={opt.id} value={opt.id}>{opt.label}</option>)}
                         </select>
-                      )}
-                    </div>
-                  );
-                })}
+                      </div>
+                    );
+                  })}
+                  <button onClick={()=>openAddFromColumn(s.id)} style={{width:"100%",height:36,border:`1px dashed ${C.border}`,borderRadius:8,background:"transparent",color:C.muted,cursor:"pointer"}}>+ Add goal</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {selectedGoal&&(
+        <div style={{position:"fixed",inset:0,zIndex:110,background:isMobile?"rgba(0,0,0,0.4)":"transparent"}}>
+          <div ref={panelRef} style={{position:"absolute",right:0,top:0,bottom:0,width:isMobile?"100%":320,background:C.cardBg,borderLeft:`1px solid ${C.border}`,padding:"16px 14px",overflowY:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <button onClick={()=>setSelectedGoalId(null)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text,cursor:"pointer"}}>← Back</button>
+              <span style={{fontSize:15,fontWeight:600,color:C.text,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedGoal.title}</span>
+              <button onClick={()=>delGoal(selectedGoal.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer"}}>&times;</button>
+            </div>
+            <div style={{display:"grid",gap:8,marginBottom:12}}>
+              <select value={selectedGoal.status||"not_started"} onChange={e=>updateGoalDebounced(selectedGoal.id,{status:e.target.value})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text}}>{STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
+              <select value={selectedGoal.priority||"medium"} onChange={e=>updateGoalDebounced(selectedGoal.id,{priority:e.target.value})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text}}>{PRIORITIES.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select>
+              <input type="date" value={selectedGoal.due_date||""} onChange={e=>updateGoalDebounced(selectedGoal.id,{due_date:e.target.value||null})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text}}/>
+              <select value={selectedGoal.linked_habit_id||""} onChange={e=>updateGoalDebounced(selectedGoal.id,{linked_habit_id:e.target.value||null})} style={{height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",background:C.inputBg,color:C.text}}>
+                <option value="">No linked habit</option>
+                {(habits||[]).map(h=><option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {GOAL_COLORS.map(color=><button key={color} onClick={()=>updateGoalDebounced(selectedGoal.id,{color})} style={{width:20,height:20,borderRadius:"50%",border:`2px solid ${selectedGoal.color===color?C.text:C.border}`,background:color,cursor:"pointer"}}/>)}
               </div>
-            );
-          })}
+            </div>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:12,color:C.muted,marginBottom:4}}>Progress</div>
+              <div style={{height:8,borderRadius:999,background:C.border,overflow:"hidden"}}><div style={{height:"100%",width:`${goalProgress(selectedGoal.id).pct}%`,background:selectedGoal.color||C.accent}}/></div>
+            </div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:6}}>Subtasks</div>
+            {goalProgress(selectedGoal.id).items.map(s=>(
+              <div key={s.id} style={{marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <button onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer"}}>{s.done?"✓":""}</button>
+                  <span style={{flex:1,fontSize:12,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none"}}>{s.title}</span>
+                  <label style={{fontSize:11,color:C.muted,cursor:"pointer"}}>{s.due_date?formatDueDate(s.due_date):"No date"}<input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{opacity:0,width:0,height:0,padding:0,border:"none"}}/></label>
+                  <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>💬</button>
+                </div>
+                {openSubNote[s.id]&&<textarea rows={2} value={s.note||""} onChange={e=>updateSubNote(s.id,e.target.value)} style={{marginTop:4,width:"100%",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.text,background:C.inputBg}}/>}
+              </div>
+            ))}
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              <input value={newSub[selectedGoal.id]||""} onChange={e=>setNewSub(n=>({...n,[selectedGoal.id]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addSub(selectedGoal.id)} placeholder="+ Add subtask" style={{flex:1,height:36,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:C.text}}/>
+              <button onClick={()=>addSub(selectedGoal.id)} style={{height:36,border:`1px solid ${C.accent}`,borderRadius:8,padding:"0 10px",background:C.accent,color:C.onAccent,cursor:"pointer"}}>Add</button>
+            </div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:6}}>Notes</div>
+            <RichEditor value={selectedGoal.note||""} onChange={val=>updateGoalNote(selectedGoal.id,val)} placeholder="Goal notes..." C={C}/>
+          </div>
         </div>
       )}
     </div>
