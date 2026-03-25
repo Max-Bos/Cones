@@ -337,6 +337,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 /* ── GOALS ── */
 function GoalsPage({userId,habits,C}) {
   const MS_PER_DAY=1000*60*60*24;
+  const MOBILE_QUERY="(max-width: 639px)";
   const [goals,setGoals]=useState([]);
   const [subs,setSubs]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -351,7 +352,7 @@ function GoalsPage({userId,habits,C}) {
   const [editingSubVal,setEditingSubVal]=useState("");
   const [openSubNote,setOpenSubNote]=useState({});
   const [dragGoalId,setDragGoalId]=useState(null);
-  const [isMobile,setIsMobile]=useState(()=>window.matchMedia("(max-width: 639px)").matches);
+  const [isMobile,setIsMobile]=useState(()=>window.matchMedia(MOBILE_QUERY).matches);
   const [newGoalForm,setNewGoalForm]=useState({
     title:"",
     status:"not_started",
@@ -373,7 +374,7 @@ function GoalsPage({userId,habits,C}) {
   })();},[userId]);
 
   useEffect(()=>{
-    const onResize=()=>setIsMobile(window.matchMedia("(max-width: 639px)").matches);
+    const onResize=()=>setIsMobile(window.matchMedia(MOBILE_QUERY).matches);
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
@@ -384,7 +385,7 @@ function GoalsPage({userId,habits,C}) {
   const activeGoals=goals.filter(g=>!g.archived);
   const archivedGoals=goals.filter(g=>g.archived);
   const isOverdue=(d)=>!!d&&d<todayKey();
-  const fmtDue=(d)=>d?new Date(`${d}T00:00:00`).toLocaleDateString("en-NL",{month:"short",day:"numeric"}):"";
+  const formatDueDate=(d)=>d?new Date(`${d}T00:00:00`).toLocaleDateString("nl-NL",{month:"short",day:"numeric"}):"";
   const goalSubs=(goalId)=>subs.filter(s=>s.goal_id===goalId);
   const goalProgress=(goalId)=>{
     const items=goalSubs(goalId);
@@ -462,16 +463,20 @@ function GoalsPage({userId,habits,C}) {
   };
 
   const getRoadmapPosition=(date,minDate,totalDays,containerWidth)=>{
-    const days=(new Date(date)-new Date(minDate))/MS_PER_DAY;
-    return (days/totalDays)*containerWidth;
+    const dateTs=new Date(date).getTime();
+    const minDateTs=new Date(minDate).getTime();
+    const elapsedDays=(dateTs-minDateTs)/MS_PER_DAY;
+    return (elapsedDays/totalDays)*containerWidth;
   };
   const roadmapGoals=activeGoals;
   const roadmapDueDates=roadmapGoals.map(g=>g.due_date).filter(Boolean);
-  const minCreated=roadmapGoals.length?new Date(Math.min(...roadmapGoals.map(g=>new Date(g.created_at).getTime()))):new Date();
+  const minCreatedTs=roadmapGoals.reduce((acc,g)=>Math.min(acc,new Date(g.created_at).getTime()),Number.POSITIVE_INFINITY);
+  const minCreated=Number.isFinite(minCreatedTs)?new Date(minCreatedTs):new Date();
   const maxDue=roadmapDueDates.length?new Date(Math.max(...roadmapDueDates.map(d=>new Date(d).getTime()))):new Date(minCreated.getTime()+90*MS_PER_DAY);
   const minDate=minCreated;
-  const threeMonthsFromMinDate=new Date(minDate.getTime()); threeMonthsFromMinDate.setMonth(threeMonthsFromMinDate.getMonth()+3);
-  const endDate=maxDue>threeMonthsFromMinDate?maxDue:threeMonthsFromMinDate;
+  const minDatePlusThreeMonths=new Date(minDate.getTime());
+  minDatePlusThreeMonths.setMonth(minDatePlusThreeMonths.getMonth()+3);
+  const endDate=maxDue>minDatePlusThreeMonths?maxDue:minDatePlusThreeMonths;
   const totalDays=Math.max(1,Math.ceil((endDate-minDate)/MS_PER_DAY));
   const containerWidth=Math.max(720,totalDays*4);
   const monthTicks=[];
@@ -482,13 +487,18 @@ function GoalsPage({userId,habits,C}) {
     monthCursor.setMonth(monthCursor.getMonth()+1);
   }
   const todayPosition=Math.max(0,Math.min(containerWidth,getRoadmapPosition(new Date(),minDate,totalDays,containerWidth)));
-  const tabLeftByView={list:"3px",roadmap:"calc(33.333% + 1px)",board:"calc(66.666% + 0px)"};
+  const tabLeftByView={list:"3px",roadmap:"calc(33.333% + 1px)",board:"calc(66.666% + 1px)"};
   const tabSliderLeft=tabLeftByView[view]||tabLeftByView.list;
   const handleBoardDrop=async(statusId)=>{
     if(isMobile||!dragGoalId) return;
     setGoals(gs=>gs.map(g=>g.id===dragGoalId?{...g,status:statusId}:g));
     await sb.from("goals").update({status:statusId}).eq("id",dragGoalId);
     setDragGoalId(null);
+  };
+  const getNextStatus=(statusId,dir)=>{
+    const idx=Math.max(0,STATUSES.findIndex(s=>s.id===statusId));
+    const next=(idx+dir+STATUSES.length)%STATUSES.length;
+    return STATUSES[next].id;
   };
 
   if(loading) return <Spinner C={C}/>;
@@ -573,7 +583,7 @@ function GoalsPage({userId,habits,C}) {
                   )}
                   <span style={{fontSize:12,color:status.color,background:`${status.color}1A`,border:`1px solid ${status.color}55`,borderRadius:999,padding:"3px 10px"}}>{status.label}</span>
                   <span style={{fontSize:12,color:priority.color,background:`${priority.color}1A`,border:`1px solid ${priority.color}55`,borderRadius:999,padding:"3px 10px"}}>{priority.label}</span>
-                  {g.due_date&&<span style={{fontSize:12,color:isOverdue(g.due_date)?C.danger:C.muted}}>Due {fmtDue(g.due_date)}</span>}
+                  {g.due_date&&<span style={{fontSize:12,color:isOverdue(g.due_date)?C.danger:C.muted}}>Due {formatDueDate(g.due_date)}</span>}
                   {linkedHabit&&<span style={{fontSize:12,color:C.accent,border:`1px solid ${C.accent}55`,background:C.hoverBg,borderRadius:999,padding:"3px 10px"}}>🔗 {linkedHabit.name}</span>}
                   <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{width:32,height:32,fontSize:11,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
                   {pct===100&&<button onClick={()=>updateGoal(g.id,{archived:true})} style={{fontSize:12,color:C.accent,background:C.inputBg,border:`1px solid ${C.accent}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Archive</button>}
@@ -649,7 +659,7 @@ function GoalsPage({userId,habits,C}) {
               <div style={{position:"relative",height:34,marginLeft:160,borderBottom:`1px solid ${C.border}`}}>
                 {monthTicks.map((m)=>{
                   const x=getRoadmapPosition(m,minDate,totalDays,containerWidth);
-                  return <div key={m.toISOString()} style={{position:"absolute",left:x,fontSize:12,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("en-NL",{month:"short"})}</div>;
+                  return <div key={m.toISOString()} style={{position:"absolute",left:x,fontSize:12,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("nl-NL",{month:"short"})}</div>;
                 })}
               </div>
               <div style={{position:"relative",width:containerWidth,height:roadmapGoals.length*40,marginLeft:160}}>
@@ -693,12 +703,24 @@ function GoalsPage({userId,habits,C}) {
                   const {items:subItems,done,pct}=goalProgress(g.id);
                   const priority=priorityById[g.priority]||priorityById.medium;
                   return (
-                    <div key={g.id} draggable={!isMobile} onDragStart={()=>setDragGoalId(g.id)} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 10px 9px",marginBottom:8,boxShadow:`inset 0 4px 0 ${g.color||GOAL_COLORS[0]}`,cursor:isMobile?"default":"grab"}}>
+                    <div
+                      key={g.id}
+                      draggable={!isMobile}
+                      tabIndex={!isMobile?0:-1}
+                      onDragStart={()=>setDragGoalId(g.id)}
+                      onKeyDown={e=>{
+                        if(isMobile) return;
+                        if(e.key==="ArrowRight"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",1)}); }
+                        if(e.key==="ArrowLeft"){ e.preventDefault(); updateGoal(g.id,{status:getNextStatus(g.status||"not_started",-1)}); }
+                      }}
+                      aria-label={`${g.title}. Current status: ${(statusById[g.status]||statusById.not_started).label}. Use left and right arrows to change status.`}
+                      style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 10px 9px",marginBottom:8,boxShadow:`inset 0 4px 0 ${g.color||GOAL_COLORS[0]}`,cursor:isMobile?"default":"grab"}}
+                    >
                       <div style={{fontSize:13,fontWeight:500,color:C.text,marginBottom:7}}>{g.title}</div>
                       <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden",marginBottom:7}}><div style={{height:"100%",width:`${pct}%`,background:g.color||C.accent}}/></div>
                       <div style={{display:"flex",justifyContent:"space-between",gap:6,fontSize:11,color:C.muted,marginBottom:6}}>
                         <span style={{color:priority.color}}>{priority.label}</span>
-                        <span style={{color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted}}>{g.due_date?fmtDue(g.due_date):"No due"}</span>
+                        <span style={{color:g.due_date&&isOverdue(g.due_date)?C.danger:C.muted}}>{g.due_date?formatDueDate(g.due_date):"No due"}</span>
                       </div>
                       <div style={{fontSize:11,color:C.muted}}>{done}/{subItems.length||0} subtasks</div>
                       {isMobile&&(
