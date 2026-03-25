@@ -1,10 +1,50 @@
+function getInitialDarkMode() {
+  const stored=localStorage.getItem("cones_dark");
+  if(stored!==null) return stored==="true";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function applyTheme(dark) {
+  const C=dark?DARK:LIGHT;
+  const root=document.documentElement;
+  const vars={
+    "--accent":C.accent,
+    "--accent-bg":C.accentBg,
+    "--accent-light":C.accentLight,
+    "--accent-glow":C.accentGlow,
+    "--text":C.text,
+    "--muted":C.muted,
+    "--faint":C.faint,
+    "--bg":C.bg,
+    "--surface":C.surfaceSolid,
+    "--card-bg":C.cardBg,
+    "--card-border":C.cardBorder,
+    "--card-shadow":C.cardShadow,
+    "--input-bg":C.inputBg,
+    "--border":C.border,
+    "--border-solid":C.borderSolid,
+    "--hover-bg":C.hoverBg,
+    "--done":C.done,
+    "--danger":C.danger,
+    "--row-divider":C.rowDivider,
+    "--on-accent":C.onAccent,
+    "--scroll-thumb":C.scrollThumb,
+    "--placeholder":C.faint,
+    "--olive-light":C.oliveLight,
+  };
+  Object.entries(vars).forEach(([k,v])=>root.style.setProperty(k,v));
+  if(document.body){
+    document.body.style.backgroundColor=C.bg;
+    document.body.style.color=C.text;
+  }
+}
+
+const initialDarkMode=getInitialDarkMode();
+applyTheme(initialDarkMode);
+
 /* ══════════════ ROOT ══════════════ */
 function App() {
-  const [dark,setDark]=useState(()=>{
-    const stored=localStorage.getItem("cones_dark");
-    if(stored!==null) return stored==="true";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
+  const [dark,setDark]=useState(initialDarkMode);
   const [page,setPage]=useState("today");
   const [visitedPages,setVisitedPages]=useState({today:true});
   const [goalsView,setGoalsView]=useState("list");
@@ -21,28 +61,8 @@ function App() {
   },[dark]);
 
   useEffect(()=>{
-    const root=document.documentElement;
-    const vars={
-      "--accent":C.accent,
-      "--accent-bg":C.accentBg,
-      "--accent-light":C.accentLight,
-      "--accent-glow":C.accentGlow,
-      "--text":C.text,
-      "--muted":C.muted,
-      "--border-solid":C.borderSolid,
-      "--input-bg":C.inputBg,
-      "--card-bg":C.cardBg,
-      "--card-border":C.cardBorder,
-      "--card-shadow":C.cardShadow,
-      "--hover-bg":C.hoverBg,
-      "--done":C.done,
-      "--olive-light":C.oliveLight,
-      "--bg":C.bg,
-      "--scroll-thumb":C.scrollThumb,
-      "--placeholder":C.muted,
-    };
-    Object.entries(vars).forEach(([k,v])=>root.style.setProperty(k,v));
-  },[dark,C]);
+    applyTheme(dark);
+  },[dark]);
 
   useEffect(()=>{
     setVisitedPages(v=>v[page]?v:{...v,[page]:true});

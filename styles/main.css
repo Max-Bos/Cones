@@ -21,6 +21,8 @@ html, body, #root { height: 100%; }
 }
 
 body {
+  background: #F5F0E8;
+  color: #2D2418;
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.2s, color 0.2s;
