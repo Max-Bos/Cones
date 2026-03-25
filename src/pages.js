@@ -612,7 +612,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       status:"not_started",
       priority:"medium",
       color:parentGoal.color||GOAL_COLORS[0],
-      start_date:todayKey(),
+      start_date:sub.start_date||todayKey(),
       archived:false,
       description:"",
       effort:0,
@@ -1486,7 +1486,7 @@ function OverviewPage({habits,completions,userId,C}) {
   return (
     <div className="fadein">
       <h2 className="page-heading" style={{fontSize:24,fontWeight:600,letterSpacing:"-0.02em",color:C.text,marginBottom:"2.2rem"}}>Overview</h2>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:"2.2rem"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12,marginBottom:"2.2rem"}}>
         {[{label:"Global streak",value:`${globalStreak}d`},{label:"Total habits",value:habits.length},{label:"Done (90d)",value:totalDone},{label:"Total effort this month",value:`${goalStats.label} (${goalStats.pts} pts across ${goalStats.count} goals)`}].map(s=>(
           <div key={s.label} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px 16px"}}>
             <div className="section-label" style={{color:C.faint,marginBottom:4}}>{s.label}</div>
