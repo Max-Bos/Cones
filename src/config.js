@@ -1,8 +1,13 @@
 const { useState, useEffect, useRef, useMemo } = React;
-const Lucide =
+const LucideSource =
   (typeof LucideReact !== "undefined" && LucideReact)
   || (typeof window !== "undefined" && (window.LucideReact || window.lucideReact || window.lucide))
   || {};
+const Lucide = LucideSource.icons || LucideSource.default || LucideSource;
+// Lucide UMD builds expose components with different key shapes across versions.
+function pickLucideIcon(name) {
+  return Lucide[name] || Lucide[`${name}Icon`] || Lucide[`Lucide${name}`] || FallbackIcon;
+}
 function FallbackIcon({size=16,color="currentColor",strokeWidth=2,fill="none",...props}) {
   return (
     <svg
@@ -22,16 +27,54 @@ function FallbackIcon({size=16,color="currentColor",strokeWidth=2,fill="none",..
     </svg>
   );
 }
-const {
-  Sun = FallbackIcon, CheckSquare = FallbackIcon, Target = FallbackIcon, FileText = FallbackIcon, BarChart2 = FallbackIcon, Settings = FallbackIcon,
-  Flame = FallbackIcon, Link2 = FallbackIcon, Pin = FallbackIcon, PinOff = FallbackIcon, Archive = FallbackIcon, ArchiveRestore = FallbackIcon,
-  Trash2 = FallbackIcon, Pencil = FallbackIcon, ChevronDown = FallbackIcon, ChevronUp = FallbackIcon, ChevronRight = FallbackIcon,
-  ArrowUpRight = FallbackIcon, Plus = FallbackIcon, X = FallbackIcon, Check = FallbackIcon, Calendar = FallbackIcon, Clock = FallbackIcon, User = FallbackIcon,
-  AlertCircle = FallbackIcon, Lock = FallbackIcon, Flag = FallbackIcon, Milestone = FallbackIcon, GitBranch = FallbackIcon, Copy = FallbackIcon,
-  MessageSquare = FallbackIcon, MoreHorizontal = FallbackIcon, Triangle = FallbackIcon, Star = FallbackIcon, Zap = FallbackIcon,
-  TrendingUp = FallbackIcon, LayoutGrid = FallbackIcon, List = FallbackIcon, RefreshCw = FallbackIcon, Moon = FallbackIcon, SunMedium = FallbackIcon,
-  LogOut = FallbackIcon, Shield = FallbackIcon, Bell = FallbackIcon, Eye = FallbackIcon, EyeOff = FallbackIcon, GripVertical = FallbackIcon, Square = FallbackIcon,
-} = Lucide;
+const Sun = pickLucideIcon("Sun");
+const CheckSquare = pickLucideIcon("CheckSquare");
+const Target = pickLucideIcon("Target");
+const FileText = pickLucideIcon("FileText");
+const BarChart2 = pickLucideIcon("BarChart2");
+const Settings = pickLucideIcon("Settings");
+const Flame = pickLucideIcon("Flame");
+const Link2 = pickLucideIcon("Link2");
+const Pin = pickLucideIcon("Pin");
+const PinOff = pickLucideIcon("PinOff");
+const Archive = pickLucideIcon("Archive");
+const ArchiveRestore = pickLucideIcon("ArchiveRestore");
+const Trash2 = pickLucideIcon("Trash2");
+const Pencil = pickLucideIcon("Pencil");
+const ChevronDown = pickLucideIcon("ChevronDown");
+const ChevronUp = pickLucideIcon("ChevronUp");
+const ChevronRight = pickLucideIcon("ChevronRight");
+const ArrowUpRight = pickLucideIcon("ArrowUpRight");
+const Plus = pickLucideIcon("Plus");
+const X = pickLucideIcon("X");
+const Check = pickLucideIcon("Check");
+const Calendar = pickLucideIcon("Calendar");
+const Clock = pickLucideIcon("Clock");
+const User = pickLucideIcon("User");
+const AlertCircle = pickLucideIcon("AlertCircle");
+const Lock = pickLucideIcon("Lock");
+const Flag = pickLucideIcon("Flag");
+const Milestone = pickLucideIcon("Milestone");
+const GitBranch = pickLucideIcon("GitBranch");
+const Copy = pickLucideIcon("Copy");
+const MessageSquare = pickLucideIcon("MessageSquare");
+const MoreHorizontal = pickLucideIcon("MoreHorizontal");
+const Triangle = pickLucideIcon("Triangle");
+const Star = pickLucideIcon("Star");
+const Zap = pickLucideIcon("Zap");
+const TrendingUp = pickLucideIcon("TrendingUp");
+const LayoutGrid = pickLucideIcon("LayoutGrid");
+const List = pickLucideIcon("List");
+const RefreshCw = pickLucideIcon("RefreshCw");
+const Moon = pickLucideIcon("Moon");
+const SunMedium = pickLucideIcon("SunMedium");
+const LogOut = pickLucideIcon("LogOut");
+const Shield = pickLucideIcon("Shield");
+const Bell = pickLucideIcon("Bell");
+const Eye = pickLucideIcon("Eye");
+const EyeOff = pickLucideIcon("EyeOff");
+const GripVertical = pickLucideIcon("GripVertical");
+const Square = pickLucideIcon("Square");
 
 const SUPABASE_URL = "https://idfxmacdmyzhrwqjeidl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_kLkc8DvWZ9cTVeLk5mBB0Q_IwSD95eR";
