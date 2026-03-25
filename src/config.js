@@ -6,7 +6,7 @@ const {
   ArrowUpRight, Plus, X, Check, Calendar, Clock, User,
   AlertCircle, Lock, Flag, Milestone, GitBranch, Copy,
   MessageSquare, MoreHorizontal, Triangle, Star, Zap,
-  TrendingUp, Map, LayoutGrid, List, RefreshCw, Moon, SunMedium,
+  TrendingUp, LayoutGrid, List, RefreshCw, Moon, SunMedium,
   LogOut, Shield, Bell, Eye, EyeOff, GripVertical, Square,
 } = LucideReact;
 
