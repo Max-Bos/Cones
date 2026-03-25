@@ -200,6 +200,8 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
         const tagAccentColor=tagConfig?C.tags[tagConfig.key].color:C.accent;
         const linkedCount=linkedGoalCounts[h.id]||0;
         const pingCount=linkedGoalPings[h.id]||0;
+        const linkedLabel=`${linkedCount} linked goal${linkedCount===1?"":"s"}`;
+        const linkedBadgeText=`🔗 ${linkedCount}${pingCount>0?` +${pingCount}`:""}`;
         return (
           <div key={h.id} style={{background:done?C.successBg:C.cardBg,border:`1px solid ${done?C.done:C.border}`,borderRadius:12,padding:"18px 20px",marginBottom:12,position:"relative",transition:"all 0.3s ease",boxShadow:`inset 4px 0 0 ${tagAccentColor}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -208,7 +210,7 @@ function TodayPage({habits,completions,setCompletions,userId,C}) {
               </div>
               <span style={{fontSize:14,fontWeight:400,flex:1,color:done?C.done:C.text,textDecoration:done?"line-through":"none",opacity:done?0.76:1,transition:"all 0.3s ease"}}>{h.name}</span>
               {h.tag&&<TagPill tag={h.tag} C={C}/>}
-              {linkedCount>0&&<span title={`${linkedCount} linked goal${linkedCount===1?"":"s"}`} style={{fontSize:12,fontWeight:500,color:C.accent,border:`1px solid ${C.accent}55`,background:C.hoverBg,borderRadius:999,padding:"3px 10px",flexShrink:0}}>🔗 {linkedCount}{pingCount>0?` +${pingCount}`:""}</span>}
+              {linkedCount>0&&<span title={linkedLabel} style={{fontSize:12,fontWeight:500,color:C.accent,border:`1px solid ${C.accent}55`,background:C.hoverBg,borderRadius:999,padding:"3px 10px",flexShrink:0}}>{linkedBadgeText}</span>}
               {streak>0&&<span aria-label={`Current streak: ${streak} days`} style={{fontSize:12,fontWeight:500,color:C.accentDark,background:C.streakBg,border:`1px solid ${C.streakBorder}`,borderRadius:999,padding:"3px 12px",flexShrink:0}}>🔥 {streak}</span>}
               <button onClick={()=>setExpanded(e=>({...e,[h.id]:!e[h.id]}))} style={{width:32,height:32,fontSize:12,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>{isOpen?"▲":"▼"}</button>
             </div>
@@ -334,6 +336,7 @@ function HabitsPage({habits,setHabits,completions,userId,C}) {
 
 /* ── GOALS ── */
 function GoalsPage({userId,habits,C}) {
+  const MS_PER_DAY=1000*60*60*24;
   const [goals,setGoals]=useState([]);
   const [subs,setSubs]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -361,13 +364,13 @@ function GoalsPage({userId,habits,C}) {
 
   useEffect(()=>{(async()=>{
     const [{data:g},{data:s}]=await Promise.all([
-      sb.from("goals").select("*").order("created_at"),
-      sb.from("subtasks").select("*"),
+      sb.from("goals").select("*").eq("user_id",userId).order("created_at"),
+      sb.from("subtasks").select("*").eq("user_id",userId),
     ]);
     setGoals(g||[]);
     setSubs(s||[]);
     setLoading(false);
-  })();},[]);
+  })();},[userId]);
 
   useEffect(()=>{
     const onResize=()=>setIsMobile(window.matchMedia("(max-width: 639px)").matches);
@@ -459,17 +462,17 @@ function GoalsPage({userId,habits,C}) {
   };
 
   const getRoadmapPosition=(date,minDate,totalDays,containerWidth)=>{
-    const days=(new Date(date)-new Date(minDate))/(1000*60*60*24);
+    const days=(new Date(date)-new Date(minDate))/MS_PER_DAY;
     return (days/totalDays)*containerWidth;
   };
   const roadmapGoals=activeGoals;
   const roadmapDueDates=roadmapGoals.map(g=>g.due_date).filter(Boolean);
   const minCreated=roadmapGoals.length?new Date(Math.min(...roadmapGoals.map(g=>new Date(g.created_at).getTime()))):new Date();
-  const maxDue=roadmapDueDates.length?new Date(Math.max(...roadmapDueDates.map(d=>new Date(d).getTime()))):new Date(minCreated.getTime()+90*24*60*60*1000);
+  const maxDue=roadmapDueDates.length?new Date(Math.max(...roadmapDueDates.map(d=>new Date(d).getTime()))):new Date(minCreated.getTime()+90*MS_PER_DAY);
   const minDate=minCreated;
-  const minEndByThreeMonths=new Date(minDate.getTime()); minEndByThreeMonths.setMonth(minEndByThreeMonths.getMonth()+3);
-  const endDate=maxDue>minEndByThreeMonths?maxDue:minEndByThreeMonths;
-  const totalDays=Math.max(1,Math.ceil((endDate-minDate)/(1000*60*60*24)));
+  const threeMonthsFromMinDate=new Date(minDate.getTime()); threeMonthsFromMinDate.setMonth(threeMonthsFromMinDate.getMonth()+3);
+  const endDate=maxDue>threeMonthsFromMinDate?maxDue:threeMonthsFromMinDate;
+  const totalDays=Math.max(1,Math.ceil((endDate-minDate)/MS_PER_DAY));
   const containerWidth=Math.max(720,totalDays*4);
   const monthTicks=[];
   const monthCursor=new Date(minDate.getFullYear(),minDate.getMonth(),1);
@@ -478,6 +481,15 @@ function GoalsPage({userId,habits,C}) {
     monthTicks.push(new Date(monthCursor));
     monthCursor.setMonth(monthCursor.getMonth()+1);
   }
+  const todayPosition=Math.max(0,Math.min(containerWidth,getRoadmapPosition(new Date(),minDate,totalDays,containerWidth)));
+  const tabLeftByView={list:"3px",roadmap:"calc(33.333% + 1px)",board:"calc(66.666% + 0px)"};
+  const tabSliderLeft=tabLeftByView[view]||tabLeftByView.list;
+  const handleBoardDrop=async(statusId)=>{
+    if(isMobile||!dragGoalId) return;
+    setGoals(gs=>gs.map(g=>g.id===dragGoalId?{...g,status:statusId}:g));
+    await sb.from("goals").update({status:statusId}).eq("id",dragGoalId);
+    setDragGoalId(null);
+  };
 
   if(loading) return <Spinner C={C}/>;
 
@@ -486,7 +498,7 @@ function GoalsPage({userId,habits,C}) {
       <h2 className="page-heading" style={{fontSize:24,fontWeight:600,letterSpacing:"-0.02em",color:C.text,marginBottom:"1.4rem"}}>Goals</h2>
 
       <div style={{position:"relative",display:"flex",background:C.bg,borderRadius:10,padding:3,marginBottom:18,border:`1px solid ${C.border}`,maxWidth:420}}>
-        <div style={{position:"absolute",top:3,bottom:3,left:view==="list"?"3px":view==="roadmap"?"calc(33.333% + 1px)":"calc(66.666% + 0px)",width:"calc(33.333% - 4px)",borderRadius:8,background:C.accent,transition:"all 0.2s ease"}}/>
+        <div style={{position:"absolute",top:3,bottom:3,left:tabSliderLeft,width:"calc(33.333% - 4px)",borderRadius:8,background:C.accent,transition:"all 0.2s ease"}}/>
         {["list","roadmap","board"].map(v=>(
           <button key={v} onClick={()=>setView(v)} style={{position:"relative",zIndex:1,flex:1,border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:500,background:"transparent",color:view===v?C.onAccent:C.muted,cursor:"pointer"}}>
             {v==="list"?"List":v==="roadmap"?"Roadmap":"Board"}
@@ -571,28 +583,31 @@ function GoalsPage({userId,habits,C}) {
                 {isOpen&&(
                   <div style={{borderTop:`1px solid ${C.rowDivider}`,paddingTop:12}}>
                     {g.note&&<p style={{fontSize:12,color:C.muted,marginBottom:8}}>{g.note}</p>}
-                    {items.map(s=>(
-                      <div key={s.id} style={{padding:"6px 0"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                            {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    {items.map(s=>{
+                      const subDueColor=(s.due_date&&isOverdue(s.due_date))?C.danger:C.muted;
+                      return (
+                        <div key={s.id} style={{padding:"6px 0"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div onClick={()=>toggleSub(s)} aria-label={`Mark ${s.title} as ${s.done?"incomplete":"complete"}`} role="button" style={{width:22,height:22,borderRadius:6,flexShrink:0,cursor:"pointer",border:`1.8px solid ${s.done?C.done:C.border}`,background:s.done?C.done:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              {s.done&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3L3.5 6L8 1" stroke={C.onAccent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                            </div>
+                            {editingSubId===s.id?(
+                              <input value={editingSubVal} autoFocus onChange={e=>setEditingSubVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveSubEdit(s.id); if(e.key==="Escape"){setEditingSubId(null);setEditingSubVal("");}}} onBlur={()=>saveSubEdit(s.id)}
+                                style={{flex:1,minWidth:120,height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,background:C.inputBg,color:C.text}}/>
+                            ):(
+                              <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
+                            )}
+                            <input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{height:30,border:`1px solid ${C.border}`,borderRadius:7,padding:"0 8px",fontSize:12,background:C.inputBg,color:subDueColor}}/>
+                            <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>💬</button>
+                            <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                           </div>
-                          {editingSubId===s.id?(
-                            <input value={editingSubVal} autoFocus onChange={e=>setEditingSubVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter") saveSubEdit(s.id); if(e.key==="Escape"){setEditingSubId(null);setEditingSubVal("");}}} onBlur={()=>saveSubEdit(s.id)}
-                              style={{flex:1,minWidth:120,height:34,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,background:C.inputBg,color:C.text}}/>
-                          ):(
-                            <span onClick={()=>startSubEdit(s)} style={{flex:1,fontSize:13,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none",opacity:s.done?0.6:1,cursor:"text"}}>{s.title}</span>
+                          {openSubNote[s.id]&&(
+                            <textarea rows={2} value={s.note||""} onChange={e=>updateSub(s.id,{note:e.target.value})} placeholder="Subtask note..."
+                              style={{marginTop:6,marginLeft:30,width:"calc(100% - 30px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.text,background:C.inputBg,lineHeight:1.4}}/>
                           )}
-                          <input type="date" value={s.due_date||""} onChange={e=>updateSub(s.id,{due_date:e.target.value||null})} style={{height:30,border:`1px solid ${C.border}`,borderRadius:7,padding:"0 8px",fontSize:12,background:C.inputBg,color:s.due_date&&isOverdue(s.due_date)?C.danger:C.muted}}/>
-                          <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8}}>💬</button>
-                          <button onClick={()=>delSub(s.id)} style={{width:28,height:28,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                         </div>
-                        {openSubNote[s.id]&&(
-                          <textarea rows={2} value={s.note||""} onChange={e=>updateSub(s.id,{note:e.target.value})} placeholder="Subtask note..."
-                            style={{marginTop:6,marginLeft:30,width:"calc(100% - 30px)",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.text,background:C.inputBg,lineHeight:1.4}}/>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div style={{display:"flex",gap:8,marginTop:10}}>
                       <input value={newSub[g.id]||""} onChange={e=>setNewSub(n=>({...n,[g.id]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addSub(g.id)}
                         placeholder="Add sub-task..." style={{flex:1,height:38,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:13,background:C.inputBg,color:C.text}}/>
@@ -632,13 +647,13 @@ function GoalsPage({userId,habits,C}) {
           ):(
             <div style={{minWidth:containerWidth+180}}>
               <div style={{position:"relative",height:34,marginLeft:160,borderBottom:`1px solid ${C.border}`}}>
-                {monthTicks.map((m,i)=>{
+                {monthTicks.map((m)=>{
                   const x=getRoadmapPosition(m,minDate,totalDays,containerWidth);
-                  return <div key={i} style={{position:"absolute",left:x,fontSize:12,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("en-NL",{month:"short"})}</div>;
+                  return <div key={m.toISOString()} style={{position:"absolute",left:x,fontSize:12,color:C.muted,transform:"translateX(-50%)"}}>{m.toLocaleDateString("en-NL",{month:"short"})}</div>;
                 })}
               </div>
               <div style={{position:"relative",width:containerWidth,height:roadmapGoals.length*40,marginLeft:160}}>
-                <div style={{position:"absolute",left:Math.max(0,Math.min(containerWidth,getRoadmapPosition(new Date(),minDate,totalDays,containerWidth))),top:0,bottom:0,width:2,background:C.danger,opacity:0.8}}/>
+                <div style={{position:"absolute",left:todayPosition,top:0,bottom:0,width:2,background:C.danger,opacity:0.8}}/>
                 {roadmapGoals.map((g,i)=>{
                   const rowTop=i*40+4;
                   const start=getRoadmapPosition(g.created_at,minDate,totalDays,containerWidth);
@@ -668,7 +683,7 @@ function GoalsPage({userId,habits,C}) {
           {STATUSES.map(s=>{
             const items=activeGoals.filter(g=>(g.status||"not_started")===s.id);
             return (
-              <div key={s.id} onDragOver={e=>{if(!isMobile) e.preventDefault();}} onDrop={async()=>{if(!isMobile&&dragGoalId){setGoals(gs=>gs.map(g=>g.id===dragGoalId?{...g,status:s.id}:g)); await sb.from("goals").update({status:s.id}).eq("id",dragGoalId); setDragGoalId(null);}}}
+              <div key={s.id} onDragOver={e=>{if(!isMobile) e.preventDefault();}} onDrop={()=>handleBoardDrop(s.id)}
                 style={{background:`${s.color}1A`,border:`1px solid ${C.border}`,borderRadius:12,padding:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                   <span style={{fontSize:13,fontWeight:600,color:C.text}}>{s.label}</span>
