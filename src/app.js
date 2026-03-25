@@ -112,7 +112,7 @@ function App() {
         <div className="content-area">
           {page==="today"    &&<TodayPage    habits={habits} completions={completions} setCompletions={setCompletions} userId={user.id} C={C}/>}
           {page==="habits"   &&<HabitsPage   habits={habits} setHabits={setHabits} completions={completions} userId={user.id} C={C}/>}
-          {page==="goals"    &&<GoalsPage    userId={user.id} habits={habits} C={C}/>}
+          {page==="goals"    &&<GoalsPage    userId={user.id} habits={habits} completions={completions} C={C}/>}
           {page==="notes"    &&<NotesPage    userId={user.id} C={C}/>}
           {page==="overview" &&<OverviewPage habits={habits} completions={completions} userId={user.id} C={C}/>}
           {page==="settings" &&<SettingsPage user={user} C={C} dark={dark} setDark={setDark} reminder={reminder} setReminder={setReminder} onSignOut={signOut}/>}
