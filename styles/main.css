@@ -62,6 +62,21 @@ button, a, [role="button"], [aria-label], input, select, textarea {
 .life-weeks-grid-row { display: grid; grid-template-columns: repeat(52, 8px); gap: 2px; }
 .life-week-cell { width: 8px; height: 8px; border-radius: 2px; }
 
+.milestone-diamond {
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  position: absolute;
+  cursor: pointer;
+  z-index: 4;
+}
+
+.template-pill:hover { transform: translateY(-1px); }
+
+.blocked-goal-card { opacity: 0.94; }
+.board-card-locked { overflow: hidden; }
+
 /* Two-column habit grid on wide screens */
 @media (min-width: 900px) {
   .habits-grid {

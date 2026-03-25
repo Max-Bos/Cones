@@ -39,6 +39,85 @@ const GOAL_COLORS = [
   "#C4884A", "#5A8A5A", "#6B6BAA", "#C45A7A",
   "#4A8AAA", "#AA8A4A", "#7AAA7A", "#AA4A6B"
 ];
+const GOAL_TAGS = [
+  { label:"Work", color:"#C4884A", bg:"#FEF3E2" },
+  { label:"Personal", color:"#6B6BAA", bg:"#EEEEF8" },
+  { label:"Health", color:"#5A8A5A", bg:"#EDF5ED" },
+  { label:"Finance", color:"#AA8A4A", bg:"#F8F2E2" },
+  { label:"Learning", color:"#4A8AAA", bg:"#E2F2F8" },
+  { label:"Other", color:"#8C7560", bg:"#F7F2EA" },
+];
+const EFFORT_LABELS = [
+  { value:0, label:"Not set" },
+  { value:1, label:"XS — 1h" },
+  { value:2, label:"S — few hours" },
+  { value:3, label:"M — 1 day" },
+  { value:5, label:"L — few days" },
+  { value:8, label:"XL — 1 week" },
+  { value:13, label:"XXL — weeks" },
+];
+const GOAL_TEMPLATES = [
+  {
+    id:"launch",
+    name:"Product launch",
+    description:"Ship a product from idea to launch",
+    color:"#C4884A",
+    tag:"Work",
+    effort:13,
+    subtasks:[
+      "Define requirements",
+      "Design mockups",
+      "Build MVP",
+      "Internal testing",
+      "Fix critical bugs",
+      "Launch",
+    ],
+  },
+  {
+    id:"fitness",
+    name:"Fitness goal",
+    description:"Build a consistent fitness routine",
+    color:"#5A8A5A",
+    tag:"Health",
+    effort:5,
+    subtasks:[
+      "Set target metrics",
+      "Create workout plan",
+      "Week 1 check-in",
+      "Week 2 check-in",
+      "Month review",
+    ],
+  },
+  {
+    id:"learning",
+    name:"Learn a skill",
+    description:"Study and apply a new skill",
+    color:"#4A8AAA",
+    tag:"Learning",
+    effort:8,
+    subtasks:[
+      "Find resources",
+      "Complete beginner material",
+      "Build a practice project",
+      "Review and reflect",
+    ],
+  },
+  {
+    id:"project",
+    name:"Side project",
+    description:"Plan and execute a personal project",
+    color:"#6B6BAA",
+    tag:"Personal",
+    effort:8,
+    subtasks:[
+      "Define scope",
+      "Set milestones",
+      "Build v1",
+      "Get feedback",
+      "Iterate",
+    ],
+  },
+];
 const LIGHT = {
   bg:"#FDFAF6", surface:"#F7F2EA", border:"#E8DFD0",
   accent:"#C4884A", accentDark:"#8B5E30",
