@@ -84,12 +84,12 @@ function App() {
   const signOut=async()=>{ await sb.auth.signOut(); setPage("today"); };
 
   const nav=[
-    {id:"today",   icon:"●",label:"Today"},
-    {id:"habits",  icon:"●", label:"Habits"},
-    {id:"goals",   icon:"●", label:"Goals"},
-    {id:"notes",   icon:"●", label:"Notes"},
-    {id:"overview",icon:"●", label:"Overview"},
-    {id:"settings",icon:"●", label:"Settings"},
+    {id:"today",   icon:"☀️",label:"Today"},
+    {id:"habits",  icon:"✓", label:"Habits"},
+    {id:"goals",   icon:"◎", label:"Goals"},
+    {id:"notes",   icon:"✎", label:"Notes"},
+    {id:"overview",icon:"◈", label:"Overview"},
+    {id:"settings",icon:"⚙", label:"Settings"},
   ];
 
   if(!user) return <AuthPage C={C}/>;
@@ -119,7 +119,7 @@ function App() {
         animation:"fadein 0.25s ease",
       }}>
         <div style={{padding:"0 1.5rem",marginBottom:"1.8rem"}}>
-          <h1 style={{fontSize:30,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",display:"flex",alignItems:"center",gap:8}}>🔺 Cones</h1>
+          <h1 style={{fontSize:30,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",display:"flex",alignItems:"center",gap:8}}><span aria-hidden="true">🔺</span> Cones</h1>
         </div>
         <div style={{height:"1px",background:C.rowDivider,margin:"0 16px 12px"}}/>
         <div style={{display:"flex",flexDirection:"column",gap:4,flex:1,padding:"0 10px"}}>

@@ -30,6 +30,7 @@ function NavItem({icon,label,active,onClick,C,mobile}) {
   }
   return (
     <button onClick={onClick}
+      aria-current={active?"page":undefined}
       onMouseEnter={()=>setHover(true)}
       onMouseLeave={()=>setHover(false)}
       style={{

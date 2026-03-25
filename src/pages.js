@@ -68,7 +68,7 @@ function AuthPage({C}) {
     <div style={{minHeight:"100vh",background:C.bgGradient||C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
       <div style={{maxWidth:420,width:"100%"}}>
         <div className="glass-card fadein" style={{padding:36,backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)"}}>
-          <h1 style={{fontSize:32,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",marginBottom:6}}>🔺 Cones</h1>
+          <h1 style={{fontSize:32,fontWeight:600,color:C.accent,letterSpacing:"-0.03em",marginBottom:6}}><span aria-hidden="true">🔺</span> Cones</h1>
           <p style={{fontSize:14,color:C.muted,marginBottom:24}}>Stay consistent, one day at a time.</p>
           <div className="glass-card-sm" style={{position:"relative",display:"flex",borderRadius:10,padding:3,marginBottom:22}}>
             <div style={{position:"absolute",top:3,bottom:3,left:mode==="login"?"3px":"calc(50% + 1px)",width:"calc(50% - 4px)",borderRadius:8,background:C.accent,transition:"all 0.2s ease"}}/>
@@ -749,7 +749,9 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const roadmapLayout=roadmapGoals.reduce((acc,g)=>{
     const status=statusById[g.status]||statusById.not_started;
     const subItems=goalSubs(g.id);
-    const goalStartDate=g.start_date?new Date(`${g.start_date}T00:00:00`):new Date(g.created_at);
+    const createdRaw=String(g.created_at||todayKey()||"");
+    const createdDate=/^\d{4}-\d{2}-\d{2}/.test(createdRaw)?createdRaw.slice(0,10):todayKey();
+    const goalStartDate=g.start_date?new Date(`${g.start_date}T00:00:00`):new Date(`${createdDate}T00:00:00`);
     const start=getRoadmapPosition(goalStartDate,minDate,totalDays,containerWidth);
     const fallbackEnd=getRoadmapPosition(new Date(goalStartDate.getTime()+30*MS_PER_DAY),minDate,totalDays,containerWidth);
     const due=g.due_date?new Date(`${g.due_date}T00:00:00`):null;
@@ -1020,7 +1022,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                           </div>
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,paddingLeft:"calc(22px + 8px)"}}>
                             <div style={{display:"flex",alignItems:"center",gap:10,fontSize:11,color:C.muted,flexWrap:"wrap"}}>
-                              <button className="badge glass-card-sm" onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,padding:"2px 8px",background:C.inputBg,cursor:"pointer"}}>📅 {formatDateRange(s.start_date,s.due_date)}</button>
+                              <button className="badge glass-card-sm" aria-label={`Toggle date range picker for ${s.title}`} aria-expanded={!!openSubDates[s.id]} onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:isOverdue(s.due_date)?C.danger:C.muted,border:`1px solid ${isOverdue(s.due_date)?C.danger:C.border}`,padding:"2px 8px",background:C.inputBg,cursor:"pointer"}}>📅 {formatDateRange(s.start_date,s.due_date)}</button>
                               {s.assignee&&<span>👤 {s.assignee}</span>}
                             </div>
                             <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:28,height:28,fontSize:13,color:C.muted,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,flexShrink:0}}>💬</button>
@@ -1264,7 +1266,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <button onClick={()=>toggleSub(s)} style={{width:20,height:20,border:`1px solid ${s.done?C.done:C.border}`,borderRadius:6,background:s.done?C.done:"transparent",color:C.onAccent,cursor:"pointer"}}>{s.done?"✓":""}</button>
                   <span style={{flex:1,fontSize:12,color:s.done?C.muted:C.text,textDecoration:s.done?"line-through":"none"}}>{s.title}</span>
-                  <button className="badge glass-card-sm" onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:C.muted,border:`1px solid ${C.border}`,background:C.inputBg,cursor:"pointer"}}>{formatDateRange(s.start_date,s.due_date)}</button>
+                  <button className="badge glass-card-sm" aria-label={`Toggle date range picker for ${s.title}`} aria-expanded={!!openSubDates[s.id]} onClick={()=>setOpenSubDates(n=>({...n,[s.id]:!n[s.id]}))} style={{color:C.muted,border:`1px solid ${C.border}`,background:C.inputBg,cursor:"pointer"}}>{formatDateRange(s.start_date,s.due_date)}</button>
                   <input value={s.assignee||""} onChange={e=>updateSub(s.id,{assignee:e.target.value})} placeholder="Assignee" style={{width:90,height:24,border:`1px solid ${C.border}`,borderRadius:6,padding:"0 6px",fontSize:11,background:C.inputBg,color:C.text}}/>
                   <button onClick={()=>setOpenSubNote(n=>({...n,[s.id]:!n[s.id]}))} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>💬</button>
                   <button onClick={()=>promoteSubToGoal(s,selectedGoal)} style={{width:24,height:24,background:"transparent",border:"none",cursor:"pointer"}}>↗</button>
