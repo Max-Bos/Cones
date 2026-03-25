@@ -678,7 +678,7 @@ function GoalsPage({userId,habits,completions,C}) {
             </div>
           )}
 
-          <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:13,color:C.muted,marginBottom:"1rem",cursor:"pointer"}}>
+          <label style={{display:"inline-flex",alignItems:"center",margin:5,gap:14,fontSize:13,color:C.muted,marginBottom:"1rem",cursor:"pointer"}}>
             <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} style={{width:22,height:22}}/>
             Show archived
           </label>
