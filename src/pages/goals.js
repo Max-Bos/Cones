@@ -22,7 +22,6 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const [newSub,setNewSub]=useState({});
   const [expanded,setExpanded]=useState({});
   const [roadmapExpanded,setRoadmapExpanded]=useState({});
-  const [showArchived,setShowArchived]=useState(false);
   const [view,setView]=useState("list");
   const [showAddForm,setShowAddForm]=useState(false);
   const [editingGoalId,setEditingGoalId]=useState(null);
@@ -132,8 +131,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const priorityInitialById=Object.fromEntries(PRIORITIES.map(p=>[p.id,getPriorityInitial(p)]));
   const effortByValue=Object.fromEntries(EFFORT_LABELS.map(e=>[e.value,e.label]));
   const habitsById=Object.fromEntries((habits||[]).map(h=>[h.id,h]));
-  const activeGoals=goals.filter(g=>!g.archived);
-  const archivedGoals=goals.filter(g=>g.archived);
+  const activeGoals=goals;
   const selectedGoal=activeGoals.find(g=>g.id===selectedGoalId)||null;
   const isOverdue=(d)=>!!d&&d<todayKey();
   const LABEL_COL=isMobile?120:190;
@@ -164,7 +162,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const depGoal=(goal)=>goal?.depends_on?goalById[goal.depends_on]:null;
   const depBlocked=(goal)=>{
     const dep=depGoal(goal);
-    return !!(dep && dep.status!=="done" && !dep.archived);
+    return !!(dep && dep.status!=="done");
   };
   const goalTagTheme=(tag)=>{
     const fallback=GOAL_TAGS.find(t=>t.label==="Other")||GOAL_TAGS[GOAL_TAGS.length-1];
@@ -195,6 +193,27 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const todayCompletions=useMemo(()=> (completions||[]).filter(c=>c.date===today),[completions,today]);
   const todayHabitIds=useMemo(()=>new Set(todayCompletions.map(c=>c.habit_id)),[todayCompletions]);
   const isHabitDoneToday=(habitId)=>!!(habitId&&todayHabitIds.has(habitId));
+  const todayTs=new Date(`${today}T00:00:00`).getTime();
+  const oneWeekTs=todayTs+(7*MS_PER_DAY);
+  const openGoals=activeGoals.filter(g=>g.status!=="done");
+  const completedGoals=activeGoals.filter(g=>g.status==="done");
+  const overdueGoals=openGoals.filter(g=>!!(g.due_date&&g.due_date<today));
+  const dueSoonGoals=openGoals
+    .filter(g=>{
+      if(!g.due_date) return false;
+      const dueTs=new Date(`${g.due_date}T00:00:00`).getTime();
+      return dueTs>=todayTs&&dueTs<=oneWeekTs;
+    })
+    .sort((a,b)=>String(a.due_date||"9999-12-31").localeCompare(String(b.due_date||"9999-12-31")));
+  const completionRate=activeGoals.length?Math.round((completedGoals.length/activeGoals.length)*100):0;
+  const priorityRank={critical:4,high:3,medium:2,low:1};
+  const focusGoals=[...openGoals].sort((a,b)=>{
+    if(!!b.pinned!==!!a.pinned) return Number(!!b.pinned)-Number(!!a.pinned);
+    const pa=priorityRank[a.priority]||0;
+    const pb=priorityRank[b.priority]||0;
+    if(pb!==pa) return pb-pa;
+    return String(a.due_date||"9999-12-31").localeCompare(String(b.due_date||"9999-12-31"));
+  }).slice(0,4);
 
   useEffect(()=>{
     const linkedGoals=activeGoals.filter(g=>g.linked_habit_id);
@@ -246,7 +265,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     if(!isValidDateRange(newGoalForm.start_date,newGoalForm.due_date)) return;
     const id=Date.now().toString();
     const payload={
-      id,title,user_id:userId,archived:false,
+      id,title,user_id:userId,
       status:newGoalForm.status||"not_started",
       priority:newGoalForm.priority||"medium",
       color:newGoalForm.color||GOAL_COLORS[0],
@@ -316,7 +335,6 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       priority:"medium",
       color:parentGoal.color||GOAL_COLORS[0],
       start_date:sub.start_date||todayKey(),
-      archived:false,
       description:"",
       effort:0,
       tag:parentGoal.tag||"Other",
@@ -547,6 +565,35 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
 
       {view==="list"&&(
         <>
+          <div className="glass-card" style={{...cardStyle,padding:isMobile?"14px 14px":"18px 20px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+              <span className="section-label" style={{color:C.faint,marginBottom:0}}>Overview</span>
+              <span style={{fontSize:12,color:C.muted}}>Focus: {focusGoals.length?focusGoals.map(g=>g.title).join(" • "):"Add goals to start"}</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(5,minmax(0,1fr))",gap:8}}>
+              {[
+                {label:"Total",value:activeGoals.length},
+                {label:"Open",value:openGoals.length},
+                {label:"Done",value:completedGoals.length},
+                {label:"Due soon",value:dueSoonGoals.length},
+                {label:"Overdue",value:overdueGoals.length,color:overdueGoals.length?C.danger:C.text},
+              ].map(item=>(
+                <div key={item.label} style={{background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 10px"}}>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:3}}>{item.label}</div>
+                  <div style={{fontSize:18,fontWeight:700,color:item.color||C.text,lineHeight:1.1}}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:4}}>
+                <span>Completion</span>
+                <span style={{fontWeight:600,color:C.text}}>{completionRate}%</span>
+              </div>
+              <div style={{height:6,borderRadius:999,background:C.border,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${completionRate}%`,background:C.done}}/>
+              </div>
+            </div>
+          </div>
           {!showAddForm?(
             <button onClick={()=>setShowAddForm(true)} style={{border:`1px solid ${C.accent}`,borderRadius:8,padding:"10px 16px",fontSize:14,fontWeight:500,background:C.accent,color:C.onAccent,cursor:"pointer",marginBottom:"1rem"}}>+ Add goal</button>
           ):(
@@ -621,11 +668,6 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
             </div>
           )}
 
-          <label style={{display:"inline-flex",alignItems:"center",margin:5,gap:14,fontSize:13,color:C.muted,marginBottom:"1rem",cursor:"pointer"}}>
-            <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} style={{width:22,height:22}}/>
-            Show archived
-          </label>
-
           {activeGoals.length===0&&(
             <div style={{textAlign:"center",padding:"2.8rem 1rem",background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12}}>
               <div style={{width:82,height:82,borderRadius:"50%",border:`2px solid ${C.border}`,margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,color:C.done}}><Check size={32} strokeWidth={2}/></div>
@@ -671,7 +713,6 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
                   <button aria-label={`Edit goal ${g.title}`} onClick={()=>startGoalEdit(g)} style={{width:32,height:32,fontSize:14,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><Pencil size={14} strokeWidth={2}/></button>
                   <button onClick={()=>setExpanded(e=>({...e,[g.id]:!e[g.id]}))} style={{width:32,height:32,fontSize:11,color:C.faint,background:"transparent",border:"none",cursor:"pointer",borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{isOpen?<ChevronUp size={14} strokeWidth={2}/>:<ChevronDown size={14} strokeWidth={2}/>}</button>
                   {isMobile&&<button onClick={()=>setSelectedGoalId(g.id)} style={{height:32,border:`1px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:C.inputBg,color:C.text,cursor:"pointer"}}>Open</button>}
-                  {pct===100&&<button onClick={()=>updateGoal(g.id,{archived:true})} style={{fontSize:12,color:C.accent,background:C.inputBg,border:`1px solid ${C.accent}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Archive</button>}
                   <button aria-label={`Delete goal ${g.title}`} onClick={()=>delGoal(g.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
                 </div>
                 {g.description&&<div style={{fontSize:12,color:C.muted,marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{g.description.split("\n")[0]}</div>}
@@ -811,22 +852,17 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
             </div>
           ))}
 
-          {showArchived&&archivedGoals.length>0&&(
-            <div style={{marginTop:"2rem"}}>
-              <div className="section-label" style={{color:C.faint,marginBottom:8}}>Archived</div>
-              {archivedGoals.map(g=>{
-                const {pct}=goalProgress(g.id);
-                return (
-                  <div key={g.id} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12,opacity:0.75}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <span style={{flex:1,fontSize:14,fontWeight:500,color:C.text}}>{g.title}</span>
-                      <span style={{fontSize:12,color:C.muted}}>{pct}%</span>
-                      <button onClick={()=>updateGoal(g.id,{archived:false})} style={{fontSize:12,color:C.accent,background:C.inputBg,border:`1px solid ${C.accent}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Unarchive</button>
-                      <button onClick={()=>delGoal(g.id)} style={{width:32,height:32,fontSize:16,color:C.faint,background:"transparent",border:"none",cursor:"pointer",lineHeight:1,borderRadius:8}}>&times;</button>
-                    </div>
-                  </div>
-                );
-              })}
+          {dueSoonGoals.length>0&&(
+            <div style={{marginTop:2,marginBottom:8}}>
+              <div className="section-label" style={{color:C.faint,marginBottom:8}}>Due soon</div>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fit,minmax(220px,1fr))",gap:8}}>
+                {dueSoonGoals.slice(0,isMobile?2:4).map(g=>(
+                  <button key={g.id} onClick={()=>setSelectedGoalId(g.id)} style={{textAlign:"left",background:C.inputBg,border:`1px solid ${C.border}`,borderLeft:`3px solid ${g.color||C.accent}`,borderRadius:10,padding:"8px 10px",cursor:"pointer"}}>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{g.title}</div>
+                    <div style={{fontSize:11,color:isOverdue(g.due_date)?C.danger:C.muted,marginTop:3}}>{formatDateRange(g.start_date,g.due_date)}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </>
@@ -1072,4 +1108,3 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     </div>
   );
 }
-
