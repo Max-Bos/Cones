@@ -1,4 +1,4 @@
-/* ── AUTH ── */
+/* ── SHARED PAGE UTILITIES ── */
 function EmptyState({C,title,message}) {
   return (
     <div style={{textAlign:"center",padding:"2.75rem 1rem"}}>
