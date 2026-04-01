@@ -568,7 +568,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
           <div className="glass-card" style={{...cardStyle,padding:isMobile?"14px 14px":"18px 20px",marginBottom:14}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:10,flexWrap:"wrap"}}>
               <span className="section-label" style={{color:C.faint,marginBottom:0}}>Overview</span>
-              <span style={{fontSize:12,color:C.muted}}>Focus: {focusGoals.length?focusGoals.map(g=>g.title).join(" • "):"Add goals to start"}</span>
+              <span title={focusGoals.length?focusGoals.map(g=>g.title).join(" • "):"Add goals to start"} style={{fontSize:12,color:C.muted,flex:"1 1 220px",minWidth:0,textAlign:isMobile?"left":"right",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Focus: {focusGoals.length?focusGoals.map(g=>g.title).join(" • "):"Add goals to start"}</span>
             </div>
             <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(5,minmax(0,1fr))",gap:8}}>
               {[
