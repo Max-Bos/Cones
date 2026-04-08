@@ -30,12 +30,11 @@ const formatDateRange=(start,end)=>{
   return "No dates";
 };
 const isValidDateRange=(start,end)=>!start||!end||start<=end;
-const getDefaultGoalColor=()=>GOAL_COLORS[0];
 const createNewGoalForm=(defaultColor)=>({
   title:"",
   status:"not_started",
   priority:"medium",
-  color:defaultColor,
+  color:defaultColor||"",
   start_date:"",
   due_date:"",
   description:"",
@@ -85,7 +84,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const subNoteTimers=useRef({});
   const goalPatchTimers=useRef({});
   const seenCompletionIds=useRef(new Set());
-  const [newGoalForm,setNewGoalForm]=useState(()=>createNewGoalForm(getDefaultGoalColor()));
+  const [newGoalForm,setNewGoalForm]=useState(()=>createNewGoalForm(GOAL_COLORS[0]));
 
   useEffect(()=>{(async()=>{
     const [{data:g},{data:s},{data:m}]=await Promise.all([
@@ -275,7 +274,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       id,title,user_id:userId,
       status:newGoalForm.status||"not_started",
       priority:newGoalForm.priority||"medium",
-      color:newGoalForm.color||getDefaultGoalColor(),
+      color:newGoalForm.color||GOAL_COLORS[0],
       start_date:newGoalForm.start_date||null,
       due_date:newGoalForm.due_date||null,
       description:newGoalForm.description||"",
@@ -310,7 +309,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       setRoadmapExpanded(e=>({...e,[id]:true}));
       setShowAddForm(false);
       setNewGoalSubtasks([]);
-      setNewGoalForm(createNewGoalForm(getDefaultGoalColor()));
+      setNewGoalForm(createNewGoalForm(GOAL_COLORS[0]));
     }
   };
   const delGoal=async(id)=>{
