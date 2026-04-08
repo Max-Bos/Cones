@@ -1,20 +1,54 @@
+const GOALS_MS_PER_DAY=1000*60*60*24;
+const GOALS_MOBILE_QUERY="(max-width: 639px)";
+const MIN_SUBTASK_LABEL_WIDTH=80;
+const DEFAULT_VIEWPORT_WIDTH=720;
+const MIN_CELL_WIDTH=3;
+const TODAY_SCROLL_OFFSET_RATIO=0.25;
+const MIN_BAR_WIDTH_FOR_INDICATORS=120;
+const MIN_MONTH_LABEL_SPACING=60;
+const MIN_TODAY_LABEL_SPACE=52;
+const EMPTY_MILESTONE_EDIT={title:"",date:""};
+const GOALS_ZOOM_LEVELS={
+  week:{days:21,label:"3w",showDetailHint:false},
+  month:{days:90,label:"3m",showDetailHint:false},
+  quarter:{days:180,label:"6m",showDetailHint:true},
+  year:{days:365,label:"1y",showDetailHint:true},
+};
+
+const getPriorityInitial=(priority)=>priority?.id==="critical"?"!":String(priority?.label||"").charAt(0).toUpperCase()||"?";
+const truncateRoadmapLabel=(text,max)=>{
+  const safe=String(text||"");
+  if(max<=1) return safe.length?"…":"";
+  return safe.length>max?`${safe.slice(0,max-1)}…`:safe;
+};
+const getSubtaskBarLabel=(subtask,width)=>width>MIN_SUBTASK_LABEL_WIDTH?`${subtask.done?"✓ ":""}${subtask.title||""}`:"";
+const formatDueDate=(d)=>d?new Date(`${d}T00:00:00`).toLocaleDateString("nl-NL",{month:"short",day:"numeric"}):"";
+const formatDateRange=(start,end)=>{
+  if(start&&end) return `${formatDueDate(start)} → ${formatDueDate(end)}`;
+  if(end) return `End ${formatDueDate(end)}`;
+  if(start) return `Start ${formatDueDate(start)}`;
+  return "No dates";
+};
+const isValidDateRange=(start,end)=>!start||!end||start<=end;
+const createNewGoalForm=()=>({
+  title:"",
+  status:"not_started",
+  priority:"medium",
+  color:GOAL_COLORS[0],
+  start_date:"",
+  due_date:"",
+  description:"",
+  effort:0,
+  tag:"Other",
+  manual_progress:-1,
+  pinned:false,
+  depends_on:"",
+  template:false,
+  linked_habit_id:"",
+  note:"",
+});
+
 function GoalsPage({userId,habits,completions,onViewChange,C}) {
-  const MS_PER_DAY=1000*60*60*24;
-  const MOBILE_QUERY="(max-width: 639px)";
-  const MIN_SUBTASK_LABEL_WIDTH=80;
-  const DEFAULT_VIEWPORT_WIDTH=720;
-  const MIN_CELL_WIDTH=3;
-  const TODAY_SCROLL_OFFSET_RATIO=0.25;
-  const MIN_BAR_WIDTH_FOR_INDICATORS=120;
-  const MIN_MONTH_LABEL_SPACING=60;
-  const MIN_TODAY_LABEL_SPACE=52;
-  const getPriorityInitial=(priority)=>priority?.id==="critical"?"!":String(priority?.label||"").charAt(0).toUpperCase()||"?";
-  const ZOOM_LEVELS={
-    week:{days:21,label:"3w",showDetailHint:false},
-    month:{days:90,label:"3m",showDetailHint:false},
-    quarter:{days:180,label:"6m",showDetailHint:true},
-    year:{days:365,label:"1y",showDetailHint:true},
-  };
   const [goals,setGoals]=useState([]);
   const [subs,setSubs]=useState([]);
   const [milestones,setMilestones]=useState([]);
@@ -33,7 +67,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const [openColorId,setOpenColorId]=useState(null);
   const [dragGoalId,setDragGoalId]=useState(null);
   const [boardDraggingId,setBoardDraggingId]=useState(null);
-  const [isMobile,setIsMobile]=useState(()=>window.matchMedia(MOBILE_QUERY).matches);
+  const [isMobile,setIsMobile]=useState(()=>window.matchMedia(GOALS_MOBILE_QUERY).matches);
   const [selectedGoalId,setSelectedGoalId]=useState(null);
   const [zoomLevel,setZoomLevel]=useState("month");
   const [viewportWidth,setViewportWidth]=useState(0);
@@ -41,7 +75,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const [promoteMsg,setPromoteMsg]=useState("");
   const [newMilestone,setNewMilestone]=useState({});
   const [editingMilestoneId,setEditingMilestoneId]=useState(null);
-  const [milestoneEdit,setMilestoneEdit]=useState({title:"",date:""});
+  const [milestoneEdit,setMilestoneEdit]=useState(EMPTY_MILESTONE_EDIT);
   const [newGoalSubtasks,setNewGoalSubtasks]=useState([]);
   const panelRef=useRef(null);
   const roadmapScrollRef=useRef(null);
@@ -50,23 +84,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const subNoteTimers=useRef({});
   const goalPatchTimers=useRef({});
   const seenCompletionIds=useRef(new Set());
-  const [newGoalForm,setNewGoalForm]=useState({
-    title:"",
-    status:"not_started",
-    priority:"medium",
-    color:GOAL_COLORS[0],
-    start_date:"",
-    due_date:"",
-    description:"",
-    effort:0,
-    tag:"Other",
-    manual_progress:-1,
-    pinned:false,
-    depends_on:"",
-    template:false,
-    linked_habit_id:"",
-    note:"",
-  });
+  const [newGoalForm,setNewGoalForm]=useState(createNewGoalForm);
 
   useEffect(()=>{(async()=>{
     const [{data:g},{data:s},{data:m}]=await Promise.all([
@@ -78,7 +96,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     setGoals(nextGoals);
     setSubs(s||[]);
     setMilestones(m||[]);
-    const desktopDefault=!window.matchMedia(MOBILE_QUERY).matches;
+    const desktopDefault=!window.matchMedia(GOALS_MOBILE_QUERY).matches;
     const defaultExpanded=Object.fromEntries(nextGoals.map(goal=>[goal.id,desktopDefault]));
     setExpanded(defaultExpanded);
     setRoadmapExpanded(prev=>Object.keys(prev).length?prev:Object.fromEntries(nextGoals.map(goal=>[goal.id,true])));
@@ -86,7 +104,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   })();},[userId]);
 
   useEffect(()=>{
-    const onResize=()=>setIsMobile(window.matchMedia(MOBILE_QUERY).matches);
+    const onResize=()=>setIsMobile(window.matchMedia(GOALS_MOBILE_QUERY).matches);
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
@@ -136,20 +154,6 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const isOverdue=(d)=>!!d&&d<todayKey();
   const LABEL_COL=isMobile?120:190;
   const priorityInitial=(priorityId)=>priorityInitialById[priorityId]||"?";
-  const truncateRoadmapLabel=(text,max)=>{
-    const safe=String(text||"");
-    if(max<=1) return safe.length?"…":"";
-    return safe.length>max?`${safe.slice(0,max-1)}…`:safe;
-  };
-  const getSubtaskBarLabel=(subtask,width)=>width>MIN_SUBTASK_LABEL_WIDTH?`${subtask.done?"✓ ":""}${subtask.title||""}`:"";
-  const formatDueDate=(d)=>d?new Date(`${d}T00:00:00`).toLocaleDateString("nl-NL",{month:"short",day:"numeric"}):"";
-  const formatDateRange=(start,end)=>{
-    if(start&&end) return `${formatDueDate(start)} → ${formatDueDate(end)}`;
-    if(end) return `End ${formatDueDate(end)}`;
-    if(start) return `Start ${formatDueDate(start)}`;
-    return "No dates";
-  };
-  const isValidDateRange=(start,end)=>!start||!end||start<=end;
   const cardStyle={
     background:C.cardBg,
     border:`1px solid ${C.cardBorder||C.border}`,
@@ -194,7 +198,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const todayHabitIds=useMemo(()=>new Set(todayCompletions.map(c=>c.habit_id)),[todayCompletions]);
   const isHabitDoneToday=(habitId)=>!!(habitId&&todayHabitIds.has(habitId));
   const todayTs=new Date(`${today}T00:00:00`).getTime();
-  const oneWeekTs=todayTs+(7*MS_PER_DAY);
+  const oneWeekTs=todayTs+(7*GOALS_MS_PER_DAY);
   const openGoals=activeGoals.filter(g=>g.status!=="done");
   const completedGoals=activeGoals.filter(g=>g.status==="done");
   const overdueGoals=openGoals.filter(g=>!!(g.due_date&&g.due_date<today));
@@ -305,7 +309,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       setRoadmapExpanded(e=>({...e,[id]:true}));
       setShowAddForm(false);
       setNewGoalSubtasks([]);
-      setNewGoalForm({title:"",status:"not_started",priority:"medium",color:GOAL_COLORS[0],start_date:"",due_date:"",description:"",effort:0,tag:"Other",manual_progress:-1,pinned:false,depends_on:"",template:false,linked_habit_id:"",note:""});
+      setNewGoalForm(createNewGoalForm());
     }
   };
   const delGoal=async(id)=>{
@@ -415,7 +419,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
   const getRoadmapPosition=(date,minDate,totalDays,containerWidth)=>{
     const dateTs=new Date(date).getTime();
     const minDateTs=new Date(minDate).getTime();
-    const elapsedDays=(dateTs-minDateTs)/MS_PER_DAY;
+    const elapsedDays=(dateTs-minDateTs)/GOALS_MS_PER_DAY;
     return (elapsedDays/totalDays)*containerWidth;
   };
   const roadmapGoals=activeGoals.filter(g=>g.start_date||g.due_date||goalSubs(g.id).some(s=>s.due_date||s.start_date)||goalMilestones(g.id).some(m=>m.date));
@@ -425,13 +429,13 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     return Math.min(acc,base);
   },Number.POSITIVE_INFINITY);
   const minCreated=Number.isFinite(minCreatedTs)?new Date(minCreatedTs):new Date();
-  const maxDue=roadmapDueDates.length?new Date(Math.max(...roadmapDueDates.map(d=>new Date(d).getTime()))):new Date(minCreated.getTime()+90*MS_PER_DAY);
+  const maxDue=roadmapDueDates.length?new Date(Math.max(...roadmapDueDates.map(d=>new Date(d).getTime()))):new Date(minCreated.getTime()+90*GOALS_MS_PER_DAY);
   const minDate=minCreated;
   const minDateTarget=new Date(minDate.getTime());
-  minDateTarget.setDate(minDateTarget.getDate()+ZOOM_LEVELS[zoomLevel].days);
+  minDateTarget.setDate(minDateTarget.getDate()+GOALS_ZOOM_LEVELS[zoomLevel].days);
   const endDate=maxDue>minDateTarget?maxDue:minDateTarget;
-  const totalDays=Math.max(1,Math.ceil((endDate-minDate)/MS_PER_DAY));
-  const zoomCellWidth=Math.max(MIN_CELL_WIDTH,(viewportWidth||DEFAULT_VIEWPORT_WIDTH)/ZOOM_LEVELS[zoomLevel].days);
+  const totalDays=Math.max(1,Math.ceil((endDate-minDate)/GOALS_MS_PER_DAY));
+  const zoomCellWidth=Math.max(MIN_CELL_WIDTH,(viewportWidth||DEFAULT_VIEWPORT_WIDTH)/GOALS_ZOOM_LEVELS[zoomLevel].days);
   const containerWidth=Math.max(280,viewportWidth-LABEL_COL-30,totalDays*zoomCellWidth);
   const monthTicks=[];
   const weekTicks=[];
@@ -478,7 +482,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
     const createdDate=/^\d{4}-\d{2}-\d{2}/.test(createdRaw)?createdRaw.slice(0,10):todayKey();
     const goalStartDate=g.start_date?new Date(`${g.start_date}T00:00:00`):new Date(`${createdDate}T00:00:00`);
     const start=getRoadmapPosition(goalStartDate,minDate,totalDays,containerWidth);
-    const fallbackEnd=getRoadmapPosition(new Date(goalStartDate.getTime()+30*MS_PER_DAY),minDate,totalDays,containerWidth);
+    const fallbackEnd=getRoadmapPosition(new Date(goalStartDate.getTime()+30*GOALS_MS_PER_DAY),minDate,totalDays,containerWidth);
     const due=g.due_date?new Date(`${g.due_date}T00:00:00`):null;
     const end=due?getRoadmapPosition(due,minDate,totalDays,containerWidth):fallbackEnd;
     const barWidth=Math.max(28,end-start);
@@ -873,8 +877,8 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
       {view==="roadmap"&&(
         <div ref={roadmapScrollRef} style={{background:C.cardBg,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 16px",overflowX:"auto",minHeight:400}}>
           <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginBottom:isMobile?2:10}}>
-            {Object.keys(ZOOM_LEVELS).map(z=>(
-              <button key={z} onClick={()=>setZoomLevel(z)} style={{height:30,border:`1px solid ${zoomLevel===z?C.accent:C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:zoomLevel===z?C.hoverBg:C.inputBg,color:zoomLevel===z?C.accent:C.muted,cursor:"pointer"}}>{ZOOM_LEVELS[z].label}</button>
+            {Object.keys(GOALS_ZOOM_LEVELS).map(z=>(
+              <button key={z} onClick={()=>setZoomLevel(z)} style={{height:30,border:`1px solid ${zoomLevel===z?C.accent:C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,background:zoomLevel===z?C.hoverBg:C.inputBg,color:zoomLevel===z?C.accent:C.muted,cursor:"pointer"}}>{GOALS_ZOOM_LEVELS[z].label}</button>
             ))}
           </div>
           {!isMobile&&<div style={{fontSize:11,color:C.muted,textAlign:"right",marginBottom:10}}>On mobile devices, a simplified card-based layout is shown.</div>}
@@ -909,7 +913,7 @@ function GoalsPage({userId,habits,completions,onViewChange,C}) {
             </div>
           ):(
             <div style={{minWidth:containerWidth+LABEL_COL+20}}>
-              {ZOOM_LEVELS[zoomLevel].showDetailHint&&<div style={{marginLeft:LABEL_COL,fontSize:11,color:C.muted,marginBottom:6}}>Zoom in to month/week for more detailed labels.</div>}
+              {GOALS_ZOOM_LEVELS[zoomLevel].showDetailHint&&<div style={{marginLeft:LABEL_COL,fontSize:11,color:C.muted,marginBottom:6}}>Zoom in to month/week for more detailed labels.</div>}
               <div style={{position:"relative",height:46,marginLeft:LABEL_COL,borderBottom:`1px solid ${C.border}`}}>
                 {monthTicks.map((m,i)=>{
                   const x=getRoadmapPosition(m,minDate,totalDays,containerWidth);
