@@ -14,7 +14,45 @@ function getYearLabel(rowIndex) {
 }
 
 const todayKey = () => new Date().toISOString().slice(0,10);
-const last90 = () => { const d=[]; for(let i=89;i>=0;i--){ const x=new Date(); x.setDate(x.getDate()-i); d.push(x.toISOString().slice(0,10)); } return d; };
+
+const last90 = () => {
+  const days = [];
+  for(let i=89;i>=0;i--){
+    const date = new Date();
+    date.setDate(date.getDate()-i);
+    days.push(date.toISOString().slice(0,10));
+  }
+  return days;
+};
+
 const last30 = () => last90().slice(-30);
-const computeStreak = (id, comps) => { let s=0,d=new Date(); while(true){ const k=d.toISOString().slice(0,10); if(comps.find(c=>c.habit_id===id&&c.date===k)){s++;d.setDate(d.getDate()-1);}else break; } return s; };
-const computeLongest = (id, comps) => { const days=last90(); let b=0,c=0; days.forEach(d=>{ if(comps.find(x=>x.habit_id===id&&x.date===d)){c++;b=Math.max(b,c);}else c=0; }); return b; };
+
+const computeStreak = (id, comps) => {
+  let streak = 0;
+  const date = new Date();
+  while(true){
+    const key = date.toISOString().slice(0,10);
+    if(comps.find(c=>c.habit_id===id&&c.date===key)){
+      streak++;
+      date.setDate(date.getDate()-1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+};
+
+const computeLongest = (id, comps) => {
+  const days = last90();
+  let best = 0;
+  let current = 0;
+  days.forEach(day=>{
+    if(comps.find(x=>x.habit_id===id&&x.date===day)){
+      current++;
+      best = Math.max(best,current);
+    } else {
+      current = 0;
+    }
+  });
+  return best;
+};
