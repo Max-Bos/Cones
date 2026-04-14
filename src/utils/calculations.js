@@ -25,7 +25,15 @@ const last90 = () => {
   return days;
 };
 
-const last30 = () => last90().slice(-30);
+const last30 = () => {
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    days.push(date.toISOString().slice(0, 10));
+  }
+  return days;
+};
 
 const computeStreak = (id, comps) => {
   const habitCompletions = (comps || []).filter(completion => completion.habit_id === id);
@@ -35,6 +43,7 @@ const computeStreak = (id, comps) => {
     const completionTs = new Date(`${completion.date}T00:00:00`).getTime();
     return Number.isNaN(completionTs) ? minTs : Math.min(minTs, completionTs);
   }, Infinity);
+  if (!Number.isFinite(oldestCompletionTs)) return 0;
   let streak = 0;
   const date = new Date();
   while (date.getTime() >= oldestCompletionTs) {
